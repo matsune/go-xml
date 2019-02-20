@@ -5,140 +5,38 @@ import (
 	"testing"
 )
 
-func TestParser_Test(t *testing.T) {
-	type fields struct {
-		source string
-		cursor int
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		str    string
-		want   bool
-	}{
-		{
-			fields: fields{
-				source: "abc",
-				cursor: 0,
-			},
-			str:  "a",
-			want: true,
-		},
-		{
-			fields: fields{
-				source: "abc",
-				cursor: 0,
-			},
-			str:  "ab",
-			want: true,
-		},
-		{
-			fields: fields{
-				source: "abc",
-				cursor: 0,
-			},
-			str:  "abc",
-			want: true,
-		},
-		{
-			fields: fields{
-				source: "abc",
-				cursor: 1,
-			},
-			str:  "a",
-			want: false,
-		},
-		{
-			fields: fields{
-				source: "abc",
-				cursor: 1,
-			},
-			str:  "bc",
-			want: true,
-		},
-		{
-			fields: fields{
-				source: "abc",
-				cursor: 2,
-			},
-			str:  "c",
-			want: true,
-		},
-		{
-			fields: fields{
-				source: "abc",
-				cursor: 2,
-			},
-			str:  "a",
-			want: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &Parser{
-				source: []rune(tt.fields.source),
-				cursor: tt.fields.cursor,
-			}
-			if got := p.Tests(tt.str); got != tt.want {
-				t.Errorf("Parser.Match() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestParser_Get(t *testing.T) {
-	type fields struct {
-		source string
-		cursor int
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   rune
-	}{
-		{
-			fields: fields{
-				source: "a",
-				cursor: 0,
-			},
-			want: 'a',
-		},
-		{
-			fields: fields{
-				source: "a",
-				cursor: 1,
-			},
-			want: EOF,
-		},
-		{
-			fields: fields{
-				source: "a",
-				cursor: 2,
-			},
-			want: EOF,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &Parser{
-				source: []rune(tt.fields.source),
-				cursor: tt.fields.cursor,
-			}
-			if got := p.Get(); got != tt.want {
-				t.Errorf("Parser.Get() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestParser_parseXmlDecl(t *testing.T) {
-
 	tests := []struct {
 		name    string
 		str     string
 		want    *XMLDecl
 		wantErr bool
 	}{
+		{
+			name:    "not <?xml",
+			str:     `<xml version="1.0" standalone="no" ?>`,
+			wantErr: true,
+		},
+		{
+			name:    "error version",
+			str:     `<?xml version=1.0 standalone="no" ?>`,
+			wantErr: true,
+		},
+		{
+			name:    "error encoding",
+			str:     `<?xml version="1.0" encoding= ?>`,
+			wantErr: true,
+		},
+		{
+			name:    "error standalone",
+			str:     `<?xml version="1.0" standalone= ?>`,
+			wantErr: true,
+		},
+		{
+			name:    "error close",
+			str:     `<?xml version="1.0"  >`,
+			wantErr: true,
+		},
 		{
 			str: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`,
 			want: &XMLDecl{
@@ -148,16 +46,12 @@ func TestParser_parseXmlDecl(t *testing.T) {
 			},
 		},
 		{
-			str: `<?xml version="2.0"  standalone="no"    ?>`,
+			str: `<?xml version="1.1"  standalone="no"    ?>`,
 			want: &XMLDecl{
-				Version:    "2.0",
+				Version:    "1.1",
 				Encoding:   "",
 				Standalone: false,
 			},
-		},
-		{
-			str:     `<xml version="2.0" >`,
-			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -177,106 +71,103 @@ func TestParser_parseXmlDecl(t *testing.T) {
 
 func newRune(r rune) *rune { return &r }
 
-func TestParser_parseProlog(t *testing.T) {
+func TestParser_parseDoctype(t *testing.T) {
 	tests := []struct {
 		name    string
 		source  string
-		want    *Prolog
+		want    *DOCType
 		wantErr bool
 	}{
 		{
-			name: "nesting elements",
-			source: `
-			<?xml version="1.0"?>
-			<!DOCTYPE student [
+			name:    "no '!'",
+			source:  `<DOCTYPE document SYSTEM "subjects.dtd">`,
+			wantErr: true,
+		},
+		{
+			name:    "no space between DOCTYPE and name",
+			source:  `<!DOCTYPEdocument SYSTEM "subjects.dtd">`,
+			wantErr: true,
+		},
+		{
+			name:    "no name",
+			source:  `<!DOCTYPE >`,
+			wantErr: true,
+		},
+		{
+			name:    "no system literal",
+			source:  `<!DOCTYPE doc SYSTEM>`,
+			wantErr: true,
+		},
+		{
+			name:    "no end tag",
+			source:  `<!DOCTYPE doc SYSTEM "subjects.dtd" `,
+			wantErr: true,
+		},
+		{
+			name:   "has ExternalID",
+			source: `<!DOCTYPE doc SYSTEM "subjects.dtd" >`,
+			want: &DOCType{
+				Name: "doc",
+				ExternalID: &ExternalID{
+					Identifier: ExtSystem,
+					System:     "subjects.dtd",
+				},
+			},
+		},
+		{
+			source: `<!DOCTYPE student [
 				<!ELEMENT student (surname,firstname*,dob?,(origin|sex)?)>
 				<!ELEMENT surname (#PCDATA)>
 				<!ELEMENT firstname (#PCDATA)>
 				<!ELEMENT sex (#PCDATA)>
 			]>`,
-			want: &Prolog{
-				XMLDecl: &XMLDecl{
-					Version: "1.0",
-				},
-				DOCType: &DOCType{
-					Name: "student",
-					Markups: []Markup{
-						&Element{
-							Name: "student",
-							ContentSpec: &Children{
-								ChoiceSeq: &Seq{
-									CPs: []CP{
-										CP{
-											Name: "surname",
-										},
-										CP{
-											Name:   "firstname",
-											Suffix: newRune('*'),
-										},
-										CP{
-											Name:   "dob",
-											Suffix: newRune('?'),
-										},
-										CP{
-											ChoiceSeq: &Choice{
-												CPs: []CP{
-													CP{
-														Name: "origin",
-													},
-													CP{
-														Name: "sex",
-													},
+			want: &DOCType{
+				Name: "student",
+				Markups: []Markup{
+					&Element{
+						Name: "student",
+						ContentSpec: &Children{
+							ChoiceSeq: &Seq{
+								CPs: []CP{
+									CP{
+										Name: "surname",
+									},
+									CP{
+										Name:   "firstname",
+										Suffix: newRune('*'),
+									},
+									CP{
+										Name:   "dob",
+										Suffix: newRune('?'),
+									},
+									CP{
+										ChoiceSeq: &Choice{
+											CPs: []CP{
+												CP{
+													Name: "origin",
+												},
+												CP{
+													Name: "sex",
 												},
 											},
-											Suffix: newRune('?'),
 										},
+										Suffix: newRune('?'),
 									},
 								},
 							},
 						},
-						&Element{
-							Name:        "surname",
-							ContentSpec: &Mixed{},
-						},
-						&Element{
-							Name:        "firstname",
-							ContentSpec: &Mixed{},
-						},
-						&Element{
-							Name:        "sex",
-							ContentSpec: &Mixed{},
-						},
 					},
-				},
-			},
-		},
-		{
-			source: `<?xml version="1.0" standalone="yes" ?>
-
-			<!--open the DOCTYPE declaration -
-			  the open square bracket indicates an internal DTD-->
-			<!DOCTYPE foo [
-			
-			<!--define the internal DTD-->
-			  <!ELEMENT foo (#PCDATA)>
-			
-			<!--close the DOCTYPE declaration-->
-			]>
-			`,
-			want: &Prolog{
-				XMLDecl: &XMLDecl{
-					Version:    "1.0",
-					Standalone: true,
-				},
-				DOCType: &DOCType{
-					Name: "foo",
-					Markups: []Markup{
-						Comment(`define the internal DTD`),
-						&Element{
-							Name:        "foo",
-							ContentSpec: &Mixed{},
-						},
-						Comment(`close the DOCTYPE declaration`),
+					&Element{
+						Name:        "surname",
+						ContentSpec: &Mixed{},
+					},
+					&Element{
+						Name:        "firstname",
+						ContentSpec: &Mixed{},
+					},
+					&Element{
+						Name:        "sex",
+						ContentSpec: &Mixed{},
 					},
 				},
 			},
@@ -285,14 +176,13 @@ func TestParser_parseProlog(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := NewParser(tt.source)
-			got, err := p.parseProlog()
+			got, err := p.parseDoctype()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Parser.parseProlog() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Parser.parseDoctype() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Parser.parseProlog() = %v, want %v", got, tt.want)
+				t.Errorf("Parser.parseDoctype() = %v, want %v", got, tt.want)
 			}
 		})
 	}

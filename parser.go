@@ -3,72 +3,17 @@ package xml
 import "fmt"
 
 type Parser struct {
-	source []rune
-	cursor int
+	*Scanner
 }
 
 func NewParser(str string) *Parser {
 	return &Parser{
-		source: []rune(str),
-		cursor: 0,
+		Scanner: NewScanner(str),
 	}
 }
 
-func (p *Parser) Test(r rune) bool {
-	return p.Get() == r
-}
-
-func (p *Parser) Must(r rune) error {
-	if !p.Test(r) {
-		return fmt.Errorf("expected %q", r)
-	}
-	p.Step()
-	return nil
-}
-
-// Check whether string on the cursor starts with str.
-// This method doesn't proceed cursor, only check.
-func (p *Parser) Tests(str string) bool {
-	i := p.cursor
-	e := i + len([]rune(str))
-	if len(p.source) < e {
-		return false
-	}
-	s := p.source[i:e]
-	return string(s) == str
-}
-
-// Returns error if string on cursor doesn't match str.
-// This method proceeds cursor if matching.
-func (p *Parser) Musts(str string) error {
-	if !p.Tests(str) {
-		return fmt.Errorf("expected %q", str)
-	}
-	p.StepN(len(str))
-	return nil
-}
-
-func (p *Parser) Step() {
-	p.cursor++
-}
-
-func (p *Parser) StepN(n int) {
-	p.cursor += n
-}
-
-const (
-	EOF = 0
-)
-
-func (p *Parser) Get() rune {
-	if p.isEnd() {
-		return EOF
-	}
-	return rune(p.source[p.cursor])
-}
-
-func (p *Parser) isEnd() bool {
-	return len(p.source) <= p.cursor
+func unimplemented(method string) {
+	panic("Unimplemented " + method)
 }
 
 /// EBNF for XML 1.0
@@ -210,7 +155,7 @@ func (p *Parser) parseQuote() (rune, error) {
 	if isQuote(r) {
 		p.Step()
 	} else {
-		err = fmt.Errorf("expected ' or \"")
+		err = p.errorf("expected ' or \"")
 	}
 	return r, err
 }
@@ -251,7 +196,7 @@ func (p *Parser) parseEncName() (string, error) {
 	var str string
 	r := p.Get()
 	if !isAlpha(r) {
-		return "", fmt.Errorf("error while parsing encoding name")
+		return "", p.errorf("error while parsing encoding name")
 	}
 	str += string(r)
 	p.Step()
@@ -291,7 +236,7 @@ func (p *Parser) parseStandalone() (bool, error) {
 	} else if p.Tests("no") {
 		p.StepN(2)
 	} else {
-		return false, fmt.Errorf("error while parsing standalone")
+		return false, p.errorf("error while parsing standalone")
 	}
 	if err = p.Must(quote); err != nil {
 		return false, err
@@ -312,11 +257,15 @@ func (p *Parser) parseMisc() error {
 			return err
 		}
 	} else if p.Tests(`<?`) {
-		panic("unimplemented PI")
+		// ignore PI
+		_, err := p.parsePI()
+		if err != nil {
+			return err
+		}
 	} else if isSpace(p.Get()) {
 		p.skipSpace()
 	} else {
-		return fmt.Errorf("error while parsing misc")
+		return p.errorf("error while parsing misc")
 	}
 	return nil
 }
@@ -334,7 +283,7 @@ func (p *Parser) parseComment() (Comment, error) {
 			str += Comment(r)
 			p.Step()
 		} else {
-			return "", fmt.Errorf("error while parsing comment")
+			return "", p.errorf("error while parsing comment")
 		}
 	}
 
@@ -374,10 +323,8 @@ func (p *Parser) parseDoctype() (*DOCType, error) {
 		}
 		d.ExternalID = ext
 	} else if p.Test('[') {
-		err = p.Must('[')
-		if err != nil {
-			return nil, err
-		}
+		p.Step()
+
 		for {
 			if p.Tests("<!ELEMENT") || p.Tests("<!ATTLIST") || p.Tests("<!ENTITY") || p.Tests("<!NOTATION") || p.Tests("<?") || p.Tests("<!--") {
 				var m Markup
@@ -419,8 +366,9 @@ func (p *Parser) parseDoctype() (*DOCType, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.skipSpace()
 	}
+
+	p.skipSpace()
 
 	err = p.Must('>')
 	if err != nil {
@@ -444,7 +392,7 @@ func (p *Parser) parseExternalID() (*ExternalID, error) {
 		}
 		ext.Identifier = ExtPublic
 	} else {
-		return nil, fmt.Errorf("error while parsing ExternalID")
+		return nil, p.errorf("error while parsing ExternalID")
 	}
 
 	if err := p.parseSpace(); err != nil {
@@ -469,7 +417,7 @@ func (p *Parser) parseExternalID() (*ExternalID, error) {
 	}
 	ext.System = sys
 
-	return nil, nil
+	return &ext, nil
 }
 
 // SystemLiteral ::= ('"' [^"]* '"') | ("'" [^']* "'")
@@ -484,6 +432,10 @@ func (p *Parser) parseSystemLiteral() (string, error) {
 	for !p.Test(quote) {
 		lit += string(p.Get())
 		p.Step()
+	}
+
+	if err = p.Must(quote); err != nil {
+		return "", err
 	}
 
 	return lit, nil
@@ -522,7 +474,7 @@ func (p *Parser) parseName() (string, error) {
 		n += string(p.Get())
 		p.Step()
 	} else {
-		return "", fmt.Errorf("error while parsing name")
+		return "", p.errorf("error while parsing name")
 	}
 	for p.isNameChar() {
 		n += string(p.Get())
@@ -538,7 +490,7 @@ func (p *Parser) isNameChar() bool {
 // S ::= (#x20 | #x9 | #xD | #xA)+
 func (p *Parser) parseSpace() error {
 	if !isSpace(p.Get()) {
-		return fmt.Errorf("expected space")
+		return p.errorf("expected space")
 	}
 	p.skipSpace()
 	return nil
@@ -574,7 +526,7 @@ func (p *Parser) parseVersionNum() (string, error) {
 	var str string
 	r, ok := isVerChar()
 	if !ok {
-		return "", fmt.Errorf("error while parsing version number")
+		return "", p.errorf("error while parsing version number")
 	}
 	str += string(r)
 	p.Step()
@@ -621,23 +573,28 @@ func (p *Parser) parseElement() (*Element, error) {
 }
 
 func (p *Parser) parseAttlist() (*Attlist, error) {
-	panic("unimplemented parseAttlist")
+	unimplemented("parseAttlist")
+	return nil, nil
 }
 
 func (p *Parser) parseEntity() (*Entity, error) {
-	panic("unimplemented parseEntity")
+	unimplemented("parseEntity")
+	return nil, nil
 }
 
 func (p *Parser) parseNotation() (*Notation, error) {
-	panic("unimplemented parseNotation")
+	unimplemented("parseNotation")
+	return nil, nil
 }
 
 func (p *Parser) parsePI() (*PI, error) {
-	panic("unimplemented parsePI")
+	unimplemented("parsePI")
+	return nil, nil
 }
 
 func (p *Parser) parsePEReference() (string, error) {
-	panic("unimplemented parsePEReference")
+	unimplemented("parsePEReference")
+	return "", nil
 }
 
 // contentspec ::= 'EMPTY' | 'ANY' | Mixed | children
@@ -708,7 +665,7 @@ func (p *Parser) parseChildren() (*Children, error) {
 		return &c, nil
 	}
 
-	return nil, fmt.Errorf("error while parsing children")
+	return nil, p.errorf("error while parsing children")
 }
 
 // Mixed ::= '(' S? '#PCDATA' (S? '|' S? Name)* S? ')*' | '(' S? '#PCDATA' S? ')'
