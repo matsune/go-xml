@@ -142,18 +142,22 @@ func TestParser_parseXmlDecl(t *testing.T) {
 		{
 			str: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`,
 			want: &XMLDecl{
-				VersionInfo:  "1.0",
-				EncodingDecl: "UTF-8",
-				Standalone:   true,
+				Version:    "1.0",
+				Encoding:   "UTF-8",
+				Standalone: true,
 			},
 		},
 		{
 			str: `<?xml version="2.0"  standalone="no"    ?>`,
 			want: &XMLDecl{
-				VersionInfo:  "2.0",
-				EncodingDecl: "",
-				Standalone:   false,
+				Version:    "2.0",
+				Encoding:   "",
+				Standalone: false,
 			},
+		},
+		{
+			str:     `<xml version="2.0" >`,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -166,6 +170,61 @@ func TestParser_parseXmlDecl(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Parser.parseXmlDecl() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseProlog(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *Prolog
+		wantErr bool
+	}{
+		{
+			source: `<?xml version="1.0" standalone="yes" ?>
+
+			<!--open the DOCTYPE declaration -
+			  the open square bracket indicates an internal DTD-->
+			<!DOCTYPE foo [
+			
+			<!--define the internal DTD-->
+			  <!ELEMENT foo (#PCDATA)>
+			
+			<!--close the DOCTYPE declaration-->
+			]>
+			`,
+			want: &Prolog{
+				XMLDecl: &XMLDecl{
+					Version:    "1.0",
+					Standalone: true,
+				},
+				DOCType: &DOCType{
+					Name: "foo",
+					Markups: []Markup{
+						Comment(`define the internal DTD`),
+						&Element{
+							Name:        "foo",
+							ContentSpec: &Mixed{},
+						},
+						Comment(`close the DOCTYPE declaration`),
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseProlog()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseProlog() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseProlog() = %v, want %v", got, tt.want)
 			}
 		})
 	}
