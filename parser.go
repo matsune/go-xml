@@ -107,6 +107,9 @@ func (p *Parser) Parse() error {
 // prolog ::= XMLDecl? Misc* (doctypedecl Misc*)?
 func (p *Parser) parseProlog() (*Prolog, error) {
 	pro := Prolog{}
+
+	p.skipSpace()
+
 	if p.Tests("<?xml") {
 		xmlDecl, err := p.parseXmlDecl()
 		if err != nil {
@@ -676,30 +679,55 @@ func (p *Parser) parseContentSpec() (ContentSpec, error) {
 		}
 		p.pop()
 
-		p.push()
-		{ // try parsing choice
-			var c *Choice
-			c, err = p.parseChoice()
-			if err == nil {
-				p.removeLast()
-				return c, nil
-			}
+		var ch *Children
+		ch, err = p.parseChildren()
+		if err != nil {
+			return nil, err
 		}
-		p.pop()
-
-		p.push()
-		{
-			var s *Seq
-			s, err = p.parseSeq()
-			if err == nil {
-				p.removeLast()
-				return s, nil
-			}
-		}
-		p.pop()
-
-		return nil, err
+		return ch, nil
 	}
+}
+
+// children ::= (choice | seq) ('?' | '*' | '+')?
+func (p *Parser) parseChildren() (*Children, error) {
+	var c Children
+	var err error
+
+	p.push()
+	{
+		var choice *Choice
+		choice, err = p.parseChoice()
+		if err == nil {
+			p.removeLast()
+			c.ChoiceSeq = choice
+			if p.Test('?') || p.Test('*') || p.Test('+') {
+				r := p.Get()
+				c.Suffix = &r
+				p.Step()
+			}
+			return &c, nil
+		}
+	}
+	p.pop()
+
+	p.push()
+	{
+		var s *Seq
+		s, err = p.parseSeq()
+		if err == nil {
+			p.removeLast()
+			c.ChoiceSeq = s
+			if p.Test('?') || p.Test('*') || p.Test('+') {
+				r := p.Get()
+				c.Suffix = &r
+				p.Step()
+			}
+			return &c, nil
+		}
+	}
+	p.pop()
+
+	return nil, fmt.Errorf("error while parsing children")
 }
 
 // Mixed ::= '(' S? '#PCDATA' (S? '|' S? Name)* S? ')*' | '(' S? '#PCDATA' S? ')'
@@ -735,13 +763,119 @@ func (p *Parser) parseMixed() (*Mixed, error) {
 		return nil, err
 	}
 
+	if len(m.Names) > 0 {
+		if err := p.Must('*'); err != nil {
+			return nil, err
+		}
+	}
+
 	return &m, nil
 }
 
-func (p *Parser) parseChoice() (*Choice, error) {
-	panic("unimplemented parseMixed")
+// cp ::= (Name | choice | seq) ('?' | '*' | '+')?
+func (p *Parser) parseCP() (*CP, error) {
+	var cp CP
+	var err error
+	if p.Test('(') {
+		// choice or seq
+		p.push()
+		var choice *Choice
+		choice, err = p.parseChoice()
+		if err != nil {
+			p.pop()
+
+			var seq *Seq
+			seq, err = p.parseSeq()
+			if err != nil {
+				return nil, err
+			}
+			cp.ChoiceSeq = seq
+		} else {
+			p.removeLast()
+			cp.ChoiceSeq = choice
+		}
+	} else {
+		var n string
+		n, err = p.parseName()
+		if err != nil {
+			return nil, err
+		}
+		cp.Name = n
+	}
+
+	if p.Test('?') || p.Test('*') || p.Test('+') {
+		r := p.Get()
+		cp.Suffix = &r
+		p.Step()
+	}
+
+	return &cp, nil
 }
 
+// choice ::= '(' S? cp ( S? '|' S? cp )* S? ')'
+func (p *Parser) parseChoice() (*Choice, error) {
+	if err := p.Must('('); err != nil {
+		return nil, err
+	}
+	p.skipSpace()
+	var cps []CP
+	cp, err := p.parseCP()
+	if err != nil {
+		return nil, err
+	}
+	cps = append(cps, *cp)
+	for {
+		p.skipSpace()
+		if !p.Test('|') {
+			break
+		}
+		p.Step()
+
+		cp, err = p.parseCP()
+		if err != nil {
+			return nil, err
+		}
+		cps = append(cps, *cp)
+	}
+	if err := p.Must(')'); err != nil {
+		return nil, err
+	}
+	return &Choice{
+		CPs: cps,
+	}, nil
+}
+
+// seq ::= '(' S? cp ( S? ',' S? cp )* S? ')'
 func (p *Parser) parseSeq() (*Seq, error) {
-	panic("unimplemented parseSeq")
+	if err := p.Must('('); err != nil {
+		return nil, err
+	}
+	p.skipSpace()
+	var cps []CP
+	cp, err := p.parseCP()
+	if err != nil {
+		return nil, err
+	}
+
+	cps = append(cps, *cp)
+	for {
+		p.skipSpace()
+		if !p.Test(',') {
+			break
+		}
+		p.Step()
+
+		cp, err = p.parseCP()
+		if err != nil {
+			return nil, err
+		}
+		cps = append(cps, *cp)
+	}
+
+	if err := p.Must(')'); err != nil {
+		return nil, err
+	}
+	return &Seq{
+		CPs: cps,
+	}, nil
 }

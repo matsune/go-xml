@@ -175,6 +175,8 @@ func TestParser_parseXmlDecl(t *testing.T) {
 	}
 }
 
+func newRune(r rune) *rune { return &r }
+
 func TestParser_parseProlog(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -182,6 +184,72 @@ func TestParser_parseProlog(t *testing.T) {
 		want    *Prolog
 		wantErr bool
 	}{
+		{
+			name: "nesting elements",
+			source: `
+			<?xml version="1.0"?>
+			<!DOCTYPE student [
+				<!ELEMENT student (surname,firstname*,dob?,(origin|sex)?)>
+				<!ELEMENT surname (#PCDATA)>
+				<!ELEMENT firstname (#PCDATA)>
+				<!ELEMENT sex (#PCDATA)>
+			]>`,
+			want: &Prolog{
+				XMLDecl: &XMLDecl{
+					Version: "1.0",
+				},
+				DOCType: &DOCType{
+					Name: "student",
+					Markups: []Markup{
+						&Element{
+							Name: "student",
+							ContentSpec: &Children{
+								ChoiceSeq: &Seq{
+									CPs: []CP{
+										CP{
+											Name: "surname",
+										},
+										CP{
+											Name:   "firstname",
+											Suffix: newRune('*'),
+										},
+										CP{
+											Name:   "dob",
+											Suffix: newRune('?'),
+										},
+										CP{
+											ChoiceSeq: &Choice{
+												CPs: []CP{
+													CP{
+														Name: "origin",
+													},
+													CP{
+														Name: "sex",
+													},
+												},
+											},
+											Suffix: newRune('?'),
+										},
+									},
+								},
+							},
+						},
+						&Element{
+							Name:        "surname",
+							ContentSpec: &Mixed{},
+						},
+						&Element{
+							Name:        "firstname",
+							ContentSpec: &Mixed{},
+						},
+						&Element{
+							Name:        "sex",
+							ContentSpec: &Mixed{},
+						},
+					},
+				},
+			},
+		},
 		{
 			source: `<?xml version="1.0" standalone="yes" ?>
 

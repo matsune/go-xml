@@ -33,6 +33,7 @@ const (
 	ExtPublic          = "PUBLIC"
 )
 
+// Markup
 type (
 	Markup interface {
 		Markup()
@@ -56,7 +57,7 @@ func (Notation) Markup() {}
 func (PI) Markup()       {}
 func (Comment) Markup()  {}
 
-// ContentSpec
+// ContentSpec, ChoiseSeq
 type (
 	ContentSpec interface {
 		ContentSpec()
@@ -67,16 +68,32 @@ type (
 	Mixed struct {
 		Names []string
 	}
+
+	Children struct {
+		ChoiceSeq
+		Suffix *rune // null or '?' or '*' or '+'
+	}
+	CP struct {
+		Name string
+		ChoiceSeq
+		Suffix *rune
+	}
+
+	ChoiceSeq interface {
+		ChoiceSeq()
+	}
 	Choice struct {
-		Names []string // separated '|'
+		CPs []CP // separated '|'
 	}
 	Seq struct {
-		Names []string // separated ','
+		CPs []CP // separated ','
 	}
 )
 
-func (EMPTY) ContentSpec()  {}
-func (ANY) ContentSpec()    {}
-func (Mixed) ContentSpec()  {}
-func (Choice) ContentSpec() {}
-func (Seq) ContentSpec()    {}
+func (EMPTY) ContentSpec()    {}
+func (ANY) ContentSpec()      {}
+func (Mixed) ContentSpec()    {}
+func (Children) ContentSpec() {}
+
+func (Choice) ChoiceSeq() {}
+func (Seq) ChoiceSeq()    {}
