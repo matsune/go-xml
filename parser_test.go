@@ -230,3 +230,144 @@ func TestParser_parseComment(t *testing.T) {
 		})
 	}
 }
+
+func TestParser_parseEncName(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "not starts with alphabet",
+			source:  "8UTF",
+			wantErr: true,
+		},
+		{
+			source: "UTF-8",
+			want:   "UTF-8",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseEncName()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseEncName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parseEncName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseEncoding(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "not starts with spaces",
+			source:  `encoding = "UTF-8"`,
+			wantErr: true,
+		},
+		{
+			name:    "typo encoding",
+			source:  ` encod = "UTF-8"`,
+			wantErr: true,
+		},
+		{
+			name:    "not equal",
+			source:  ` encoding:"UTF-8"`,
+			wantErr: true,
+		},
+		{
+			name:    "error while parsing encoding name",
+			source:  ` encoding="あ" `,
+			wantErr: true,
+		},
+		{
+			name:    "different quote",
+			source:  ` encoding="UTF-8' `,
+			wantErr: true,
+		},
+		{
+			source: ` encoding="UTF-8" `,
+			want:   "UTF-8",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseEncoding()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseEncoding() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parseEncoding() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseVersion(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		wantVer string
+		wantErr bool
+	}{
+		{
+			name:    "not starts with spaces",
+			source:  `version="1.0"`,
+			wantErr: true,
+		},
+		{
+			name:    "not starts with version",
+			source:  ` ver="1.0"`,
+			wantErr: true,
+		},
+		{
+			name:    "not equal",
+			source:  ` version:"1.0"`,
+			wantErr: true,
+		},
+		{
+			name:    "no quote",
+			source:  ` version=1.0`,
+			wantErr: true,
+		},
+		{
+			name:    "error while parsing version num",
+			source:  ` version=""`,
+			wantErr: true,
+		},
+		{
+			name:    "different quotes",
+			source:  ` version="1.0'`,
+			wantErr: true,
+		},
+		{
+			source:  ` version="1.0" `,
+			wantVer: "1.0",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			gotVer, err := p.parseVersion()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseVersion() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotVer != tt.wantVer {
+				t.Errorf("Parser.parseVersion() = %v, want %v", gotVer, tt.wantVer)
+			}
+		})
+	}
+}

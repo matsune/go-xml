@@ -121,32 +121,35 @@ func (p *Parser) parseXmlDecl() (*XMLDecl, error) {
 }
 
 // VersionInfo ::= S 'version' Eq (' VersionNum ' | " VersionNum ")
-func (p *Parser) parseVersion() (ver string, err error) {
-	p.parseSpace()
+func (p *Parser) parseVersion() (string, error) {
+	var err error
+	if err = p.parseSpace(); err != nil {
+		return "", err
+	}
 
 	if err = p.Musts("version"); err != nil {
-		return
+		return "", err
 	}
 	if err = p.parseEq(); err != nil {
-		return
+		return "", err
 	}
 
 	var quote rune
 	quote, err = p.parseQuote()
 	if err != nil {
-		return
+		return "", err
 	}
 
+	var ver string
 	ver, err = p.parseVersionNum()
 	if err != nil {
-		return
+		return "", err
 	}
 
 	if err = p.Must(quote); err != nil {
-		return
+		return "", err
 	}
-
-	return
+	return ver, nil
 }
 
 func (p *Parser) parseQuote() (rune, error) {
