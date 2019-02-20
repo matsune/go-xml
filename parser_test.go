@@ -1,6 +1,7 @@
 package xml
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -183,6 +184,48 @@ func TestParser_parseDoctype(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Parser.parseDoctype() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseComment(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    Comment
+		wantErr bool
+	}{
+		{
+			name:    "not starts with <!--",
+			source:  "<-- aa -->",
+			wantErr: true,
+		},
+		{
+			name:    "not end with -->",
+			source:  "<!-- aa --",
+			wantErr: true,
+		},
+		{
+			name:    "contains not char",
+			source:  fmt.Sprintf("<!-- %c -->", 0x0),
+			wantErr: true,
+		},
+		{
+			source: "<!-- this is comment-->",
+			want:   Comment(" this is comment"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseComment()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseComment() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parseComment() = %v, want %v", got, tt.want)
 			}
 		})
 	}

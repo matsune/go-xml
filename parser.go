@@ -49,7 +49,7 @@ func (p *Parser) parseProlog() (*Prolog, error) {
 		}
 	}
 
-	if p.isDoctype() {
+	if p.Tests(`<!DOCTYPE`) {
 		doc, err := p.parseDoctype()
 		if err != nil {
 			return nil, err
@@ -292,10 +292,6 @@ func (p *Parser) parseComment() (Comment, error) {
 	}
 
 	return str, nil
-}
-
-func (p *Parser) isDoctype() bool {
-	return p.Tests(`<!DOCTYPE`)
 }
 
 // doctypedecl ::= '<!DOCTYPE' S Name (S ExternalID)? S? ('[' (markupdecl | PEReference | S)* ']' S?)? '>'

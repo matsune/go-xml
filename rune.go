@@ -19,7 +19,7 @@ func isQuote(r rune) bool {
 }
 
 func isChar(r rune) bool {
-	return r == 0x9 || r == 0xA || r == 0xD || (r <= 0x20 && r <= 0xD7FF) || (r <= 0xE000 && r <= 0xFFFD) || (r <= 0x10000 && r <= 0x10FFFF)
+	return r == 0x9 || r == 0xA || r == 0xD || (0x20 <= r && r <= 0xD7FF) || (0xE000 <= r && r <= 0xFFFD) || (0x10000 <= r && r <= 0x10FFFF)
 }
 
 func isBaseChar(r rune) bool {
