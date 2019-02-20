@@ -5,31 +5,12 @@ import "fmt"
 type Parser struct {
 	source []rune
 	cursor int
-	stack  []int
 }
 
 func NewParser(str string) *Parser {
 	return &Parser{
 		source: []rune(str),
 		cursor: 0,
-	}
-}
-
-// save cursor
-func (p *Parser) push() {
-	p.stack = append(p.stack, p.cursor)
-}
-
-// load last saved cursor
-func (p *Parser) pop() {
-	if len(p.stack) > 0 {
-		p.cursor = p.stack[len(p.stack)-1]
-	}
-}
-
-func (p *Parser) removeLast() {
-	if len(p.stack) > 0 {
-		p.stack = p.stack[:len(p.stack)-1]
 	}
 }
 
@@ -152,10 +133,14 @@ func (p *Parser) parseXmlDecl() (*XMLDecl, error) {
 	}
 	x.Version = ver
 
-	p.push()
+	// keep cursor at this time
+	cur := p.cursor
+
 	p.skipSpace()
+
 	if p.Tests("encoding") {
-		p.pop()
+		// reset cursor before skipping spaces
+		p.cursor = cur
 
 		enc, err := p.parseEncoding()
 		if err != nil {
@@ -163,13 +148,15 @@ func (p *Parser) parseXmlDecl() (*XMLDecl, error) {
 		}
 		x.Encoding = enc
 	} else {
-		p.pop()
+		p.cursor = cur
 	}
 
-	p.push()
+	cur = p.cursor
+
 	p.skipSpace()
+
 	if p.Tests("standalone") {
-		p.pop()
+		p.cursor = cur
 
 		std, err := p.parseStandalone()
 		if err != nil {
@@ -177,7 +164,7 @@ func (p *Parser) parseXmlDecl() (*XMLDecl, error) {
 		}
 		x.Standalone = std
 	} else {
-		p.pop()
+		p.cursor = cur
 	}
 
 	p.skipSpace()
@@ -668,16 +655,16 @@ func (p *Parser) parseContentSpec() (ContentSpec, error) {
 	} else {
 		var err error
 
-		p.push()
+		cur := p.cursor
 		{ // try parsing mixed
 			var m *Mixed
 			m, err = p.parseMixed()
 			if err == nil {
-				p.removeLast()
 				return m, nil
 			}
 		}
-		p.pop()
+		// reset cursor if it wasn't mixed
+		p.cursor = cur
 
 		var ch *Children
 		ch, err = p.parseChildren()
@@ -693,12 +680,11 @@ func (p *Parser) parseChildren() (*Children, error) {
 	var c Children
 	var err error
 
-	p.push()
+	cur := p.cursor
 	{
 		var choice *Choice
 		choice, err = p.parseChoice()
 		if err == nil {
-			p.removeLast()
 			c.ChoiceSeq = choice
 			if p.Test('?') || p.Test('*') || p.Test('+') {
 				r := p.Get()
@@ -708,24 +694,19 @@ func (p *Parser) parseChildren() (*Children, error) {
 			return &c, nil
 		}
 	}
-	p.pop()
+	p.cursor = cur
 
-	p.push()
-	{
-		var s *Seq
-		s, err = p.parseSeq()
-		if err == nil {
-			p.removeLast()
-			c.ChoiceSeq = s
-			if p.Test('?') || p.Test('*') || p.Test('+') {
-				r := p.Get()
-				c.Suffix = &r
-				p.Step()
-			}
-			return &c, nil
+	var s *Seq
+	s, err = p.parseSeq()
+	if err == nil {
+		c.ChoiceSeq = s
+		if p.Test('?') || p.Test('*') || p.Test('+') {
+			r := p.Get()
+			c.Suffix = &r
+			p.Step()
 		}
+		return &c, nil
 	}
-	p.pop()
 
 	return nil, fmt.Errorf("error while parsing children")
 }
@@ -778,11 +759,12 @@ func (p *Parser) parseCP() (*CP, error) {
 	var err error
 	if p.Test('(') {
 		// choice or seq
-		p.push()
+		cur := p.cursor
+
 		var choice *Choice
 		choice, err = p.parseChoice()
 		if err != nil {
-			p.pop()
+			p.cursor = cur
 
 			var seq *Seq
 			seq, err = p.parseSeq()
@@ -791,7 +773,6 @@ func (p *Parser) parseCP() (*CP, error) {
 			}
 			cp.ChoiceSeq = seq
 		} else {
-			p.removeLast()
 			cp.ChoiceSeq = choice
 		}
 	} else {
