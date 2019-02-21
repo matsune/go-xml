@@ -15,7 +15,7 @@ func NewScanner(str string) *Scanner {
 }
 
 func (s *Scanner) errorf(f string, args ...interface{}) error {
-	h := fmt.Sprintf("cursor: %d ", s.cursor)
+	h := fmt.Sprintf("cursor: %d ", s.cursor-1)
 	return fmt.Errorf(h+f, args...)
 }
 

@@ -45,7 +45,7 @@ type (
 	}
 	Attlist struct {
 		Name string
-		Defs []AttDef
+		Defs []*AttDef
 	}
 	Entity   struct{}
 	Notation struct{}
@@ -72,39 +72,40 @@ type (
 	AttDef struct {
 		Name string
 		Type AttType
-		Decl DefaultDecl
+		Decl *DefaultDecl
 	}
 
 	DefaultDeclType string
 	DefaultDecl     struct {
-		Type DefaultDeclType
-		Refs []Ref
+		Type     DefaultDeclType
+		AttValue string
 	}
 
 	NotationType struct {
-		Types []string
+		Names []string
 	}
 
 	Enum struct {
-		Nms []string
+		Cases []string
 	}
 )
 
 const (
 	REQUIRED DefaultDeclType = "#REQUIRED"
-	IMPLIED                  = "#IMPLIED"
-	FIXED                    = "#FIXED"
+	IMPLIED  DefaultDeclType = "#IMPLIED"
+	FIXED    DefaultDeclType = "#FIXED"
 )
 
 const (
-	Att_CDATA    StringType    = "CDATA"
+	Att_CDATA StringType = "CDATA"
+
 	Att_ID       TokenizedType = "ID"
-	Att_IDREF                  = "IDREF"
-	Att_IDREFS                 = "IDREFS"
-	Att_ENTITY                 = "ENTITY"
-	Att_ENTITIES               = "ENTITIES"
-	Att_NMTOKEN                = "NMTOKEN"
-	Att_NMTOKENS               = "NMTOKENS"
+	Att_IDREF    TokenizedType = "IDREF"
+	Att_IDREFS   TokenizedType = "IDREFS"
+	Att_ENTITY   TokenizedType = "ENTITY"
+	Att_ENTITIES TokenizedType = "ENTITIES"
+	Att_NMTOKEN  TokenizedType = "NMTOKEN"
+	Att_NMTOKENS TokenizedType = "NMTOKENS"
 )
 
 func (StringType) AttType()    {}
@@ -155,12 +156,6 @@ func (Seq) ChoiceSeq()    {}
 
 // Entity Ref
 type (
-	Ref interface {
-		Ref()
-	}
 	EntityRef string // & Name ;
 	PERef     string // % Name ;
 )
-
-func (EntityRef) Ref() {}
-func (PERef) Ref()     {}

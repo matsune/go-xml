@@ -267,6 +267,56 @@ func (p *Parser) parseName() (string, error) {
 
 /// - Literals
 
+// AttValue ::= '"' ([^<&"] | Reference)* '"' |  "'" ([^<&'] | Reference)* "'"
+func (p *Parser) parseAttValue() (string, error) {
+	var quote rune
+	var err error
+	if quote, err = p.parseQuote(); err != nil {
+		return "", err
+	}
+
+	var str string
+	for {
+		if p.Test('<') {
+			return "", p.errorf("error AttValue")
+		}
+		if p.Test(quote) || p.isEnd() {
+			break
+		}
+
+		if p.Test('&') {
+			var eRef EntityRef
+			if eRef, err = p.parseEntityReference(); err != nil {
+				return "", err
+			}
+			str += fmt.Sprintf("&%s;", eRef)
+		} else if p.Test('%') {
+			// PERef or single %
+			cur := p.cursor
+
+			var peRef PERef
+			peRef, err = p.parsePEReference()
+			if err != nil {
+				// parse as single %
+				p.cursor = cur
+				str += "%"
+				p.Step()
+			} else {
+				str += "%" + string(peRef) + ";"
+			}
+		} else {
+			str += string(p.Get())
+			p.Step()
+		}
+	}
+
+	if err = p.Must(quote); err != nil {
+		return "", err
+	}
+
+	return str, nil
+}
+
 // SystemLiteral ::= ('"' [^"]* '"') | ("'" [^']* "'")
 func (p *Parser) parseSystemLiteral() (string, error) {
 	var quote rune
@@ -726,10 +776,252 @@ func (p *Parser) parseMixed() (*Mixed, error) {
 }
 
 /// - Attribute-list Declaration
+
 // AttlistDecl ::= '<!ATTLIST' S Name AttDef* S? '>'
 func (p *Parser) parseAttlist() (*Attlist, error) {
-	unimplemented("parseAttlist")
-	return nil, nil
+	var att Attlist
+	var err error
+	if err = p.Musts("<!ATTLIST"); err != nil {
+		return nil, err
+	}
+	if err = p.parseSpace(); err != nil {
+		return nil, err
+	}
+	if att.Name, err = p.parseName(); err != nil {
+		return nil, err
+	}
+	// S Name  or  S? '>'
+	for {
+		cur := p.cursor
+
+		p.skipSpace()
+		if p.Test('>') {
+			p.cursor = cur
+			break
+		}
+		if p.isEnd() {
+			return nil, p.errorf("error while parsing Attlist")
+		}
+		p.cursor = cur
+
+		var def *AttDef
+		if def, err = p.parseAttDef(); err != nil {
+			return nil, err
+		}
+		att.Defs = append(att.Defs, def)
+	}
+
+	p.skipSpace()
+	if err = p.Must('>'); err != nil {
+		return nil, err
+	}
+
+	return &att, nil
+}
+
+// AttDef ::= S Name S AttType S DefaultDecl
+func (p *Parser) parseAttDef() (*AttDef, error) {
+	var err error
+	if err = p.parseSpace(); err != nil {
+		return nil, err
+	}
+
+	var def AttDef
+	if def.Name, err = p.parseName(); err != nil {
+		return nil, err
+	}
+
+	if err = p.parseSpace(); err != nil {
+		return nil, err
+	}
+
+	if def.Type, err = p.parseAttType(); err != nil {
+		return nil, err
+	}
+
+	if err = p.parseSpace(); err != nil {
+		return nil, err
+	}
+
+	if def.Decl, err = p.parseDefaultDecl(); err != nil {
+		return nil, err
+	}
+
+	return &def, nil
+}
+
+/// - Attribute Types
+
+// AttType ::= StringType | TokenizedType | EnumeratedType
+func (p *Parser) parseAttType() (AttType, error) {
+	if p.Tests(string(Att_CDATA)) {
+		p.StepN(len(Att_CDATA))
+		return Att_CDATA, nil
+	} else if p.Tests(string(Att_ID)) || p.Tests(string(Att_IDREF)) || p.Tests(string(Att_IDREFS)) || p.Tests(string(Att_ENTITY)) || p.Tests(string(Att_ENTITIES)) || p.Tests(string(Att_NMTOKEN)) || p.Tests(string(Att_NMTOKENS)) {
+		var tok TokenizedType
+		switch {
+		case p.Tests(string(Att_ID)):
+			tok = Att_ID
+		case p.Tests(string(Att_IDREF)):
+			tok = Att_IDREF
+		case p.Tests(string(Att_IDREFS)):
+			tok = Att_IDREFS
+		case p.Tests(string(Att_ENTITY)):
+			tok = Att_ENTITY
+		case p.Tests(string(Att_ENTITIES)):
+			tok = Att_ENTITIES
+		case p.Tests(string(Att_NMTOKEN)):
+			tok = Att_NMTOKEN
+		case p.Tests(string(Att_NMTOKENS)):
+			tok = Att_NMTOKENS
+		}
+		p.StepN(len(tok))
+		return tok, nil
+	} else if p.Tests("NOTATION") {
+		return p.parseNotationType()
+	} else if p.Test('(') {
+		return p.parseEnum()
+	}
+	return nil, p.errorf("error while parsing AttType")
+}
+
+/// - Enumerated Attribute Types
+
+// NotationType ::= 'NOTATION' S '(' S? Name (S? '|' S? Name)* S? ')'
+func (p *Parser) parseNotationType() (*NotationType, error) {
+	var err error
+	if err = p.Musts("NOTATION"); err != nil {
+		return nil, err
+	}
+	if err = p.parseSpace(); err != nil {
+		return nil, err
+	}
+	if err = p.Must('('); err != nil {
+		return nil, err
+	}
+	p.skipSpace()
+
+	var n NotationType
+	var t string
+	if t, err = p.parseName(); err != nil {
+		return nil, err
+	}
+	n.Names = append(n.Names, t)
+
+	for {
+		cur := p.cursor
+
+		p.skipSpace()
+		if p.Test(')') {
+			p.Step()
+			break
+		}
+		if p.isEnd() {
+			return nil, p.errorf("could not found ')'")
+		}
+		p.cursor = cur
+
+		p.skipSpace()
+		if err = p.Must('|'); err != nil {
+			return nil, err
+		}
+		p.skipSpace()
+
+		if t, err = p.parseName(); err != nil {
+			return nil, err
+		}
+		n.Names = append(n.Names, t)
+	}
+
+	return &n, nil
+}
+
+// Enumeration ::= '(' S? Nmtoken (S? '|' S? Nmtoken)* S? ')'
+func (p *Parser) parseEnum() (*Enum, error) {
+	var err error
+	var e Enum
+
+	if err = p.Must('('); err != nil {
+		return nil, err
+	}
+	p.skipSpace()
+
+	var nm string
+	if nm, err = p.parseNmtoken(); err != nil {
+		return nil, err
+	}
+	e.Cases = append(e.Cases, nm)
+
+	for {
+		cur := p.cursor
+
+		p.skipSpace()
+		if p.Test(')') {
+			p.Step()
+			break
+		}
+		if p.isEnd() {
+			return nil, p.errorf("could not found ')'")
+		}
+		p.cursor = cur
+
+		p.skipSpace()
+		if err = p.Must('|'); err != nil {
+			return nil, err
+		}
+		p.skipSpace()
+
+		if nm, err = p.parseNmtoken(); err != nil {
+			return nil, err
+		}
+		e.Cases = append(e.Cases, nm)
+	}
+
+	return &e, nil
+}
+
+// Nmtoken ::= (NameChar)+
+func (p *Parser) parseNmtoken() (string, error) {
+	var str string
+	r := p.Get()
+	for isNameChar(r) {
+		str += string(r)
+		p.Step()
+		r = p.Get()
+	}
+	if len(str) == 0 {
+		return "", p.errorf("error Nmtoken")
+	}
+	return str, nil
+}
+
+/// - Attribute Defaults
+
+// DefaultDecl ::= '#REQUIRED' | '#IMPLIED' | (('#FIXED' S)? AttValue)
+func (p *Parser) parseDefaultDecl() (*DefaultDecl, error) {
+	var d DefaultDecl
+	var err error
+	if p.Tests(string(REQUIRED)) {
+		p.StepN(len(REQUIRED))
+		d.Type = REQUIRED
+		return &d, nil
+	} else if p.Tests(string(IMPLIED)) {
+		p.StepN(len(IMPLIED))
+		d.Type = IMPLIED
+		return &d, nil
+	} else {
+		if p.Tests(string(FIXED)) {
+			p.StepN(len(FIXED))
+			if err = p.parseSpace(); err != nil {
+				return nil, err
+			}
+		}
+		d.Type = FIXED
+		if d.AttValue, err = p.parseAttValue(); err != nil {
+			return nil, err
+		}
+		return &d, nil
+	}
 }
 
 /// - Entity Reference

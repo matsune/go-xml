@@ -49,3 +49,7 @@ func isExtender(r rune) bool {
 func isPubidChar(r rune) bool {
 	return r == 0x20 || r == 0xD || r == 0xA || isAlpha(r) || isNum(r) || r == '-' || r == '\'' || r == '(' || r == ')' || r == '+' || r == ',' || r == '.' || r == '/' || r == ':' || r == '=' || r == '?' || r == ';' || r == '!' || r == '*' || r == '#' || r == '@' || r == '$' || r == '_' || r == '%'
 }
+
+func isNameChar(r rune) bool {
+	return isLetter(r) || isDigit(r) || isCombining(r) || isExtender(r) || r == '.' || r == '-' || r == '_' || r == ':'
+}

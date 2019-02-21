@@ -161,6 +161,72 @@ func TestParser_parseName(t *testing.T) {
 	}
 }
 
+func TestParser_parseAttValue(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:   "empty",
+			source: `""`,
+			want:   "",
+		},
+		{
+			name:    "not started with quote",
+			source:  `a"`,
+			wantErr: true,
+		},
+		{
+			source:  `"<"`,
+			wantErr: true,
+		},
+		{
+			name:    "error only &",
+			source:  `"&"`,
+			wantErr: true,
+		},
+		{
+			name:   "not error using & as entity reference",
+			source: `"&a;"`,
+			want:   "&a;",
+		},
+		{
+			name:   "single %",
+			source: `"%%%"`,
+			want:   "%%%",
+		},
+		{
+			name:   "PERef",
+			source: `"%a;"`,
+			want:   "%a;",
+		},
+		{
+			source: `"abcd"`,
+			want:   "abcd",
+		},
+		{
+			name:    "different quotes",
+			source:  `"abcd'`,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseAttValue()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseAttValue() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parseAttValue() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parseSystemLiteral(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -850,7 +916,45 @@ func TestParser_parseAttlist(t *testing.T) {
 		want    *Attlist
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name:    "not starts with <!ATTLIST",
+			source:  `<ATTLIST n >`,
+			wantErr: true,
+		},
+		{
+			name:    "no space",
+			source:  `<!ATTLISTname >`,
+			wantErr: true,
+		},
+		{
+			name: "error parsing name",
+			source: `<!ATTLIST 
+			 >`,
+			wantErr: true,
+		},
+		{
+			name:   "no attdefs",
+			source: `<!ATTLIST name >`,
+			want: &Attlist{
+				Name: "name",
+			},
+		},
+		{
+			name:   "with attdefs",
+			source: `<!ATTLIST image height CDATA #REQUIRED>`,
+			want: &Attlist{
+				Name: "image",
+				Defs: []*AttDef{
+					&AttDef{
+						Name: "height",
+						Type: Att_CDATA,
+						Decl: &DefaultDecl{
+							Type: REQUIRED,
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -862,6 +966,124 @@ func TestParser_parseAttlist(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Parser.parseAttlist() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseNotationType(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *NotationType
+		wantErr bool
+	}{
+		{
+			name:    "not starts with NOTATION",
+			source:  " (test)",
+			wantErr: true,
+		},
+		{
+			name:    "no space",
+			source:  "NOTATION(test)",
+			wantErr: true,
+		},
+		{
+			name:    "no (",
+			source:  "NOTATION test",
+			wantErr: true,
+		},
+		{
+			name:    "no name",
+			source:  "NOTATION ()",
+			wantErr: true,
+		},
+		{
+			name:    "not closed",
+			source:  "NOTATION (test",
+			wantErr: true,
+		},
+		{
+			name:    "not separated |",
+			source:  "NOTATION (a,b)",
+			wantErr: true,
+		},
+		{
+			name:    "no name",
+			source:  "NOTATION (a|)",
+			wantErr: true,
+		},
+		{
+			source: "NOTATION (a|b)",
+			want: &NotationType{
+				Names: []string{"a", "b"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseNotationType()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseNotationType() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseNotationType() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseEnum(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *Enum
+		wantErr bool
+	}{
+		{
+			name:    "not starts with (",
+			source:  "a|b",
+			wantErr: true,
+		},
+		{
+			name:    "no name",
+			source:  "()",
+			wantErr: true,
+		},
+		{
+			name:    "not closed",
+			source:  "(a",
+			wantErr: true,
+		},
+		{
+			name:    "not separated |",
+			source:  "(a,b)",
+			wantErr: true,
+		},
+		{
+			name:    "no name",
+			source:  "(a|)",
+			wantErr: true,
+		},
+		{
+			source: "(important|normal)",
+			want: &Enum{
+				Cases: []string{"important", "normal"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseEnum()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseEnum() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseEnum() = %v, want %v", got, tt.want)
 			}
 		})
 	}
