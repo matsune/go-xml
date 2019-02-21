@@ -734,6 +734,23 @@ func (p *Parser) parseAttlist() (*Attlist, error) {
 
 /// - Entity Reference
 
+// EntityRef ::= '&' Name ';'
+func (p *Parser) parseEntityReference() (EntityRef, error) {
+	var err error
+	if err = p.Must('&'); err != nil {
+		return "", err
+	}
+	var n string
+	n, err = p.parseName()
+	if err != nil {
+		return "", err
+	}
+	if err = p.Must(';'); err != nil {
+		return "", err
+	}
+	return EntityRef(n), nil
+}
+
 // PEReference ::= '%' Name ';'
 func (p *Parser) parsePEReference() (PERef, error) {
 	var err error

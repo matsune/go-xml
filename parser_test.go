@@ -867,6 +867,48 @@ func TestParser_parseAttlist(t *testing.T) {
 	}
 }
 
+func TestParser_parseEntityReference(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    EntityRef
+		wantErr bool
+	}{
+		{
+			name:    "not starts with &",
+			source:  `name;`,
+			wantErr: true,
+		},
+		{
+			name:    "error parse name",
+			source:  `&;`,
+			wantErr: true,
+		},
+		{
+			name:    "not closed ;",
+			source:  `&name`,
+			wantErr: true,
+		},
+		{
+			source: `&name;`,
+			want:   EntityRef("name"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseEntityReference()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseEntityReference() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parseEntityReference() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parsePEReference(t *testing.T) {
 	tests := []struct {
 		name    string
