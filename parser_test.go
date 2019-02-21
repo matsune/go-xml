@@ -1412,6 +1412,82 @@ func TestParser_parsePEReference(t *testing.T) {
 	}
 }
 
+func TestParser_parseEntity(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *Entity
+		wantErr bool
+	}{
+		{
+			name:    "not starts with <!ENTITY",
+			source:  `<ENTITY a "b,c,d">`,
+			wantErr: true,
+		},
+		{
+			name:    "no spaces after <!ENTITY",
+			source:  `<!ENTITYa "b,c,d">`,
+			wantErr: true,
+		},
+		{
+			name:    "no space between % and name",
+			source:  `<!ENTITY %a  "b,c,d">`,
+			wantErr: true,
+		},
+		{
+			name:    "error while parsing name",
+			source:  `<!ENTITY ..  "b,c,d">`,
+			wantErr: true,
+		},
+		{
+			name:    "no space after name",
+			source:  `<!ENTITY a"b,c,d">`,
+			wantErr: true,
+		},
+		{
+			name:    "error while parsing PEDef",
+			source:  `<!ENTITY % a ">`,
+			wantErr: true,
+		},
+		{
+			name:    "not closed",
+			source:  `<!ENTITY % a "b,c"`,
+			wantErr: true,
+		},
+		{
+			name:   "PEDecl",
+			source: `<!ENTITY % a "b,c">`,
+			want: &Entity{
+				Name:  "a",
+				Type:  EntityType_PE,
+				Value: EntityValue{"b,c"},
+			},
+		},
+		{
+			name:   "GEDecl",
+			source: `<!ENTITY a "b,c">`,
+			want: &Entity{
+				Name:  "a",
+				Type:  EntityType_GE,
+				Value: EntityValue{"b,c"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseEntity()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseEntity() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseEntity() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parseEntityDef(t *testing.T) {
 	tests := []struct {
 		name    string
