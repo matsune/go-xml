@@ -203,9 +203,10 @@ func TestParser_parseAttValue(t *testing.T) {
 			},
 		},
 		{
-			name:   "multiple refs",
-			source: `"&#11;&#x20;&a;"`,
+			name:   "multiple values",
+			source: `"bb&#11;&#x20;&a;"`,
 			want: AttValue{
+				"bb",
 				&CharRef{Prefix: "&#", Value: "11"},
 				&CharRef{Prefix: "&#x", Value: "20"},
 				&EntityRef{Name: "a"},
@@ -1343,6 +1344,79 @@ func TestParser_parsePEReference(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Parser.parsePEReference() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseEntityDef(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    EntityValue
+		want1   *ExternalID
+		want2   string
+		wantErr bool
+	}{
+		{
+			name:   "EntityValue",
+			source: `'ab%aa;'`,
+			want: EntityValue{
+				"ab",
+				&PERef{
+					Name: "aa",
+				},
+			},
+		},
+		{
+			name:   "ExternalID",
+			source: `SYSTEM "aa"`,
+			want1: &ExternalID{
+				Identifier: ExtSystem,
+				System:     "aa",
+			},
+		},
+		{
+			name:   "ExternalID with NData",
+			source: `SYSTEM "aa" NDATA bb`,
+			want1: &ExternalID{
+				Identifier: ExtSystem,
+				System:     "aa",
+			},
+			want2: "bb",
+		},
+		{
+			name:    "error parsing EntityValue",
+			source:  `'`,
+			wantErr: true,
+		},
+		{
+			name:    "error parsing ExternalID",
+			source:  `SYSTEM`,
+			wantErr: true,
+		},
+		{
+			name:    "error empty",
+			source:  ``,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, got1, got2, err := p.parseEntityDef()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseEntityDef() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseEntityDef() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("Parser.parseEntityDef() got1 = %v, want %v", got1, tt.want1)
+			}
+			if got2 != tt.want2 {
+				t.Errorf("Parser.parseEntityDef() got2 = %v, want %v", got2, tt.want2)
 			}
 		})
 	}
