@@ -862,18 +862,21 @@ func (p *Parser) parseAttType() (AttType, error) {
 		switch {
 		case p.Tests(string(Att_ID)):
 			tok = Att_ID
-		case p.Tests(string(Att_IDREF)):
-			tok = Att_IDREF
-		case p.Tests(string(Att_IDREFS)):
-			tok = Att_IDREFS
+			if p.Tests(string(Att_IDREF)) {
+				tok = Att_IDREF
+				if p.Tests(string(Att_IDREFS)) {
+					tok = Att_IDREFS
+				}
+			}
 		case p.Tests(string(Att_ENTITY)):
 			tok = Att_ENTITY
 		case p.Tests(string(Att_ENTITIES)):
 			tok = Att_ENTITIES
 		case p.Tests(string(Att_NMTOKEN)):
 			tok = Att_NMTOKEN
-		case p.Tests(string(Att_NMTOKENS)):
-			tok = Att_NMTOKENS
+			if p.Tests(string(Att_NMTOKENS)) {
+				tok = Att_NMTOKENS
+			}
 		}
 		p.StepN(len(tok))
 		return tok, nil

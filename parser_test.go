@@ -971,6 +971,77 @@ func TestParser_parseAttlist(t *testing.T) {
 	}
 }
 
+func TestParser_parseAttType(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    AttType
+		wantErr bool
+	}{
+		{
+			source: "CDATA",
+			want:   Att_CDATA,
+		},
+		{
+			source: "ID",
+			want:   Att_ID,
+		},
+		{
+			source: "IDREF",
+			want:   Att_IDREF,
+		},
+		{
+			source: "IDREFS",
+			want:   Att_IDREFS,
+		},
+		{
+			source: "ENTITY",
+			want:   Att_ENTITY,
+		},
+		{
+			source: "ENTITIES",
+			want:   Att_ENTITIES,
+		},
+		{
+			source: "NMTOKEN",
+			want:   Att_NMTOKEN,
+		},
+		{
+			source: "NMTOKENS",
+			want:   Att_NMTOKENS,
+		},
+		{
+			source: "NOTATION (a)",
+			want: NotationType{
+				Names: []string{"a"},
+			},
+		},
+		{
+			source: "(a|b)",
+			want: Enum{
+				Cases: []string{"a", "b"},
+			},
+		},
+		{
+			name:    "error empty",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseAttType()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseAttType() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseAttType() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parseNotationType(t *testing.T) {
 	tests := []struct {
 		name    string
