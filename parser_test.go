@@ -371,3 +371,64 @@ func TestParser_parseVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestParser_parseStandalone(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    bool
+		wantErr bool
+	}{
+		{
+			name:    "not start with spaces",
+			source:  `standalone='yes'`,
+			wantErr: true,
+		},
+		{
+			name:    "no standalone",
+			source:  ` stand='yes'`,
+			wantErr: true,
+		},
+		{
+			name:    "error parse =",
+			source:  ` standalone:'yes'`,
+			wantErr: true,
+		},
+		{
+			name:    "no quote",
+			source:  ` stand=yes`,
+			wantErr: true,
+		},
+		{
+			name:    "invalid bool value",
+			source:  ` standalone='true'`,
+			wantErr: true,
+		},
+		{
+			name:    "difference quotes",
+			source:  ` standalone="yes'`,
+			wantErr: true,
+		},
+		{
+			source: ` standalone="yes"`,
+			want:   true,
+		},
+		{
+			source: ` standalone='no'`,
+			want:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseStandalone()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseStandalone() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parseStandalone() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
