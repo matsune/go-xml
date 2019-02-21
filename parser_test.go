@@ -1089,6 +1089,66 @@ func TestParser_parseEnum(t *testing.T) {
 	}
 }
 
+func TestParser_parseDefaultDecl(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *DefaultDecl
+		wantErr bool
+	}{
+		{
+			source: "#REQUIRED",
+			want: &DefaultDecl{
+				Type: REQUIRED,
+			},
+		},
+		{
+			source: "#IMPLIED",
+			want: &DefaultDecl{
+				Type: IMPLIED,
+			},
+		},
+		{
+			source: `#FIXED "a"`,
+			want: &DefaultDecl{
+				Type:     FIXED,
+				AttValue: "a",
+			},
+		},
+		{
+			name:    "no space",
+			source:  `#FIXED"a"`,
+			wantErr: true,
+		},
+		{
+			name:    "error AttValue",
+			source:  `#FIXED aa`,
+			wantErr: true,
+		},
+		{
+			name:   "no #FIXED",
+			source: `"aa"`,
+			want: &DefaultDecl{
+				Type:     FIXED,
+				AttValue: "aa",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseDefaultDecl()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseDefaultDecl() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseDefaultDecl() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parseEntityReference(t *testing.T) {
 	tests := []struct {
 		name    string
