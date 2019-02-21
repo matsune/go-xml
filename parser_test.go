@@ -1928,3 +1928,116 @@ func TestParser_parseEncName(t *testing.T) {
 		})
 	}
 }
+
+func TestParser_parseNotation(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *Notation
+		wantErr bool
+	}{
+		{
+			name:    "not starts with <!NOTATION",
+			source:  `<NOTATION name PUBLIC "public_ID" "URI">`,
+			wantErr: true,
+		},
+		{
+			name:    "no space between <!NOTATION and name",
+			source:  `<!NOTATIONname PUBLIC "public_ID" "URI">`,
+			wantErr: true,
+		},
+		{
+			name:    "name error",
+			source:  `<!NOTATION .name PUBLIC "public_ID" "URI">`,
+			wantErr: true,
+		},
+		{
+			name:    "no space after name",
+			source:  `<!NOTATION name'PUBLIC "public_ID" "URI">`,
+			wantErr: true,
+		},
+		{
+			name:    "invalid external identifier",
+			source:  `<!NOTATION name PUB "public_ID" "URI">`,
+			wantErr: true,
+		},
+		{
+			name:    "no space external identifier",
+			source:  `<!NOTATION name PUBLIC"public_ID" "URI">`,
+			wantErr: true,
+		},
+		{
+			name:    "error parsing pubid literal",
+			source:  `<!NOTATION name PUBLIC " >`,
+			wantErr: true,
+		},
+		{
+			name:    "error parsing system literal",
+			source:  `<!NOTATION name SYSTEM " >`,
+			wantErr: true,
+		},
+		{
+			name:    "not closed",
+			source:  `<!NOTATION name PUBLIC "public_ID" "URI"`,
+			wantErr: true,
+		},
+		{
+			name:   "PublicID with system",
+			source: `<!NOTATION name PUBLIC "public_ID" "URI">`,
+			want: &Notation{
+				Name: "name",
+				ExtID: ExternalID{
+					Identifier: ExtPublic,
+					Pubid:      "public_ID",
+					System:     "URI",
+				},
+			},
+		},
+		{
+			name:   "PublicID without system",
+			source: `<!NOTATION name PUBLIC "public_ID">`,
+			want: &Notation{
+				Name: "name",
+				ExtID: ExternalID{
+					Identifier: ExtPublic,
+					Pubid:      "public_ID",
+				},
+			},
+		},
+		{
+			name:   "PublicID without system, has space after pubid",
+			source: `<!NOTATION name PUBLIC "public_ID" >`,
+			want: &Notation{
+				Name: "name",
+				ExtID: ExternalID{
+					Identifier: ExtPublic,
+					Pubid:      "public_ID",
+				},
+			},
+		},
+		{
+			name:   "System",
+			source: `<!NOTATION name SYSTEM "system">`,
+			want: &Notation{
+				Name: "name",
+				ExtID: ExternalID{
+					Identifier: ExtSystem,
+					System:     "system",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseNotation()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseNotation() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseNotation() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

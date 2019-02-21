@@ -59,9 +59,12 @@ type (
 		ExID  *ExternalID
 		NData string
 	}
-	Notation struct{}
-	PI       struct{}
-	Comment  string
+	Notation struct {
+		Name  string
+		ExtID ExternalID
+	}
+	PI      struct{}
+	Comment string
 )
 
 const (

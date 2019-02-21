@@ -1407,9 +1407,81 @@ func (p *Parser) parseEncName() (string, error) {
 
 /// - Notation Declarations
 
-// NotationDecl ::= '<!NOTATION' S Name S (ExternalID |  PublicID) S? '>'
+// NotationDecl ::= '<!NOTATION' S Name S (ExternalID | PublicID) S? '>'
 func (p *Parser) parseNotation() (*Notation, error) {
-	panic("unimplemented parseNotation")
+	var n Notation
+	var err error
+	if err = p.Musts("<!NOTATION"); err != nil {
+		return nil, err
+	}
+	if err = p.parseSpace(); err != nil {
+		return nil, err
+	}
+	if n.Name, err = p.parseName(); err != nil {
+		return nil, err
+	}
+	if err = p.parseSpace(); err != nil {
+		return nil, err
+	}
+
+	// ExternalID ::= 'SYSTEM' S SystemLiteral | 'PUBLIC' S PubidLiteral
+	var ext ExternalID
+	if p.Tests(string(ExtSystem)) {
+		p.StepN(len(ExtSystem))
+		ext.Identifier = ExtSystem
+	} else if p.Tests(string(ExtPublic)) {
+		p.StepN(len(ExtPublic))
+		ext.Identifier = ExtPublic
+	} else {
+		return nil, p.errorf("error while parsing ExternalID")
+	}
+
+	if err := p.parseSpace(); err != nil {
+		return nil, err
+	}
+
+	if ext.Identifier == ExtPublic {
+		pubid, err := p.parsePubidLiteral()
+		if err != nil {
+			return nil, err
+		}
+		ext.Pubid = pubid
+
+		// ( S SystemLiteral )?
+		cur := p.cursor
+
+		err = p.parseSpace()
+		if err == nil {
+			var sys string
+			sys, err = p.parseSystemLiteral()
+			if err == nil {
+				ext.System = sys
+			} else {
+				err = nil
+				p.cursor = cur
+			}
+		} else {
+			p.cursor = cur
+			err = nil
+		}
+	} else {
+		var sys string
+		sys, err = p.parseSystemLiteral()
+		if err != nil {
+			return nil, err
+		}
+		ext.System = sys
+	}
+
+	n.ExtID = ext
+
+	p.skipSpace()
+
+	if err = p.Must('>'); err != nil {
+		return nil, err
+	}
+
+	return &n, nil
 }
 
 /// - Others
