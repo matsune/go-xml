@@ -303,6 +303,11 @@ func (p *Parser) parseEntityValue() (EntityValue, error) {
 				res = append(res, eRef)
 			}
 		} else if p.Test('%') {
+			if len(str) > 0 {
+				res = append(res, str)
+				str = ""
+			}
+
 			var pRef *PERef
 			if pRef, err = p.parsePEReference(); err != nil {
 				return nil, err

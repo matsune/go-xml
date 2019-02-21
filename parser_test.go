@@ -1348,6 +1348,66 @@ func TestParser_parsePEReference(t *testing.T) {
 	}
 }
 
+func TestParser_parsePEDef(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    EntityValue
+		want1   *ExternalID
+		wantErr bool
+	}{
+		{
+			name:   "EntityValue",
+			source: `'ab%aa;'`,
+			want: EntityValue{
+				"ab",
+				&PERef{
+					Name: "aa",
+				},
+			},
+		},
+		{
+			name:   "ExternalID",
+			source: `SYSTEM "aa"`,
+			want1: &ExternalID{
+				Identifier: ExtSystem,
+				System:     "aa",
+			},
+		},
+		{
+			name:    "error parsing EntityValue",
+			source:  `'`,
+			wantErr: true,
+		},
+		{
+			name:    "error parsing ExternalID",
+			source:  `SYSTEM`,
+			wantErr: true,
+		},
+		{
+			name:    "error empty",
+			source:  ``,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, got1, err := p.parsePEDef()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parsePEDef() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parsePEDef() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("Parser.parsePEDef() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
+
 func TestParser_parseExternalID(t *testing.T) {
 	tests := []struct {
 		name    string
