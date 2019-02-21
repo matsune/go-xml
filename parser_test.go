@@ -1012,6 +1012,69 @@ func TestParser_parseAttlist(t *testing.T) {
 	}
 }
 
+func TestParser_parseAttDef(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *AttDef
+		wantErr bool
+	}{
+		{
+			name:    "no space",
+			source:  `name CDATA #REQUIRED`,
+			wantErr: true,
+		},
+		{
+			name:    "error parsing name",
+			source:  ` .. CDATA #REQUIRED`,
+			wantErr: true,
+		},
+		{
+			name:    "no space after name",
+			source:  ` name'CDATA #REQUIRED`,
+			wantErr: true,
+		},
+		{
+			name:    "error parsing AttType",
+			source:  ` name CDA #REQUIRED`,
+			wantErr: true,
+		},
+		{
+			name:    "no space after AttType",
+			source:  ` name CDATA#REQUIRED`,
+			wantErr: true,
+		},
+		{
+			name:    "error parsing DefaultDecl",
+			source:  ` name CDATA #required`,
+			wantErr: true,
+		},
+		{
+			source: ` name CDATA #REQUIRED`,
+			want: &AttDef{
+				Name: "name",
+				Type: Att_CDATA,
+				Decl: &DefaultDecl{
+					Type: REQUIRED,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseAttDef()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseAttDef() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseAttDef() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parseAttType(t *testing.T) {
 	tests := []struct {
 		name    string
