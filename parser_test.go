@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+func newRune(r rune) *rune { return &r }
+
 func TestParser_parseXmlDecl(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -70,7 +72,104 @@ func TestParser_parseXmlDecl(t *testing.T) {
 	}
 }
 
-func newRune(r rune) *rune { return &r }
+func TestParser_parseVersion(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		wantVer string
+		wantErr bool
+	}{
+		{
+			name:    "not starts with spaces",
+			source:  `version="1.0"`,
+			wantErr: true,
+		},
+		{
+			name:    "not starts with version",
+			source:  ` ver="1.0"`,
+			wantErr: true,
+		},
+		{
+			name:    "not equal",
+			source:  ` version:"1.0"`,
+			wantErr: true,
+		},
+		{
+			name:    "no quote",
+			source:  ` version=1.0`,
+			wantErr: true,
+		},
+		{
+			name:    "error while parsing version num",
+			source:  ` version=""`,
+			wantErr: true,
+		},
+		{
+			name:    "different quotes",
+			source:  ` version="1.0'`,
+			wantErr: true,
+		},
+		{
+			source:  ` version="1.0" `,
+			wantVer: "1.0",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			gotVer, err := p.parseVersion()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseVersion() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotVer != tt.wantVer {
+				t.Errorf("Parser.parseVersion() = %v, want %v", gotVer, tt.wantVer)
+			}
+		})
+	}
+}
+
+func TestParser_parseComment(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    Comment
+		wantErr bool
+	}{
+		{
+			name:    "not starts with <!--",
+			source:  "<-- aa -->",
+			wantErr: true,
+		},
+		{
+			name:    "not end with -->",
+			source:  "<!-- aa --",
+			wantErr: true,
+		},
+		{
+			name:    "contains not char",
+			source:  fmt.Sprintf("<!-- %c -->", 0x0),
+			wantErr: true,
+		},
+		{
+			source: "<!-- this is comment-->",
+			want:   Comment(" this is comment"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseComment()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseComment() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parseComment() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 
 func TestParser_parseDoctype(t *testing.T) {
 	tests := []struct {
@@ -189,75 +288,62 @@ func TestParser_parseDoctype(t *testing.T) {
 	}
 }
 
-func TestParser_parseComment(t *testing.T) {
+func TestParser_parseStandalone(t *testing.T) {
 	tests := []struct {
 		name    string
 		source  string
-		want    Comment
+		want    bool
 		wantErr bool
 	}{
 		{
-			name:    "not starts with <!--",
-			source:  "<-- aa -->",
+			name:    "not start with spaces",
+			source:  `standalone='yes'`,
 			wantErr: true,
 		},
 		{
-			name:    "not end with -->",
-			source:  "<!-- aa --",
+			name:    "no standalone",
+			source:  ` stand='yes'`,
 			wantErr: true,
 		},
 		{
-			name:    "contains not char",
-			source:  fmt.Sprintf("<!-- %c -->", 0x0),
+			name:    "error parse =",
+			source:  ` standalone:'yes'`,
 			wantErr: true,
 		},
 		{
-			source: "<!-- this is comment-->",
-			want:   Comment(" this is comment"),
+			name:    "no quote",
+			source:  ` stand=yes`,
+			wantErr: true,
+		},
+		{
+			name:    "invalid bool value",
+			source:  ` standalone='true'`,
+			wantErr: true,
+		},
+		{
+			name:    "difference quotes",
+			source:  ` standalone="yes'`,
+			wantErr: true,
+		},
+		{
+			source: ` standalone="yes"`,
+			want:   true,
+		},
+		{
+			source: ` standalone='no'`,
+			want:   false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := NewParser(tt.source)
-			got, err := p.parseComment()
+			got, err := p.parseStandalone()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Parser.parseComment() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Parser.parseStandalone() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("Parser.parseComment() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestParser_parseEncName(t *testing.T) {
-	tests := []struct {
-		name    string
-		source  string
-		want    string
-		wantErr bool
-	}{
-		{
-			name:    "not starts with alphabet",
-			source:  "8UTF",
-			wantErr: true,
-		},
-		{
-			source: "UTF-8",
-			want:   "UTF-8",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseEncName()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Parser.parseEncName() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("Parser.parseEncName() = %v, want %v", got, tt.want)
+				t.Errorf("Parser.parseStandalone() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -315,119 +401,33 @@ func TestParser_parseEncoding(t *testing.T) {
 	}
 }
 
-func TestParser_parseVersion(t *testing.T) {
+func TestParser_parseEncName(t *testing.T) {
 	tests := []struct {
 		name    string
 		source  string
-		wantVer string
+		want    string
 		wantErr bool
 	}{
 		{
-			name:    "not starts with spaces",
-			source:  `version="1.0"`,
+			name:    "not starts with alphabet",
+			source:  "8UTF",
 			wantErr: true,
 		},
 		{
-			name:    "not starts with version",
-			source:  ` ver="1.0"`,
-			wantErr: true,
-		},
-		{
-			name:    "not equal",
-			source:  ` version:"1.0"`,
-			wantErr: true,
-		},
-		{
-			name:    "no quote",
-			source:  ` version=1.0`,
-			wantErr: true,
-		},
-		{
-			name:    "error while parsing version num",
-			source:  ` version=""`,
-			wantErr: true,
-		},
-		{
-			name:    "different quotes",
-			source:  ` version="1.0'`,
-			wantErr: true,
-		},
-		{
-			source:  ` version="1.0" `,
-			wantVer: "1.0",
+			source: "UTF-8",
+			want:   "UTF-8",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := NewParser(tt.source)
-			gotVer, err := p.parseVersion()
+			got, err := p.parseEncName()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Parser.parseVersion() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if gotVer != tt.wantVer {
-				t.Errorf("Parser.parseVersion() = %v, want %v", gotVer, tt.wantVer)
-			}
-		})
-	}
-}
-
-func TestParser_parseStandalone(t *testing.T) {
-	tests := []struct {
-		name    string
-		source  string
-		want    bool
-		wantErr bool
-	}{
-		{
-			name:    "not start with spaces",
-			source:  `standalone='yes'`,
-			wantErr: true,
-		},
-		{
-			name:    "no standalone",
-			source:  ` stand='yes'`,
-			wantErr: true,
-		},
-		{
-			name:    "error parse =",
-			source:  ` standalone:'yes'`,
-			wantErr: true,
-		},
-		{
-			name:    "no quote",
-			source:  ` stand=yes`,
-			wantErr: true,
-		},
-		{
-			name:    "invalid bool value",
-			source:  ` standalone='true'`,
-			wantErr: true,
-		},
-		{
-			name:    "difference quotes",
-			source:  ` standalone="yes'`,
-			wantErr: true,
-		},
-		{
-			source: ` standalone="yes"`,
-			want:   true,
-		},
-		{
-			source: ` standalone='no'`,
-			want:   false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseStandalone()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Parser.parseStandalone() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Parser.parseEncName() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("Parser.parseStandalone() = %v, want %v", got, tt.want)
+				t.Errorf("Parser.parseEncName() = %v, want %v", got, tt.want)
 			}
 		})
 	}
