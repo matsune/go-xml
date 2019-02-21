@@ -12,10 +12,6 @@ func NewParser(str string) *Parser {
 	}
 }
 
-func unimplemented(method string) {
-	panic("Unimplemented " + method)
-}
-
 /// EBNF for XML 1.0
 /// http://www.jelks.nu/XML/xmlebnf.html#NT-VersionInfo
 
@@ -267,42 +263,110 @@ func (p *Parser) parseName() (string, error) {
 
 /// - Literals
 
-// AttValue ::= '"' ([^<&"] | Reference)* '"' |  "'" ([^<&'] | Reference)* "'"
-func (p *Parser) parseAttValue() (string, error) {
+// EntityValue ::= '"' ([^%&"] | PEReference | Reference)* '"' |  "'" ([^%&'] |  PEReference |  Reference)* "'"
+func (p *Parser) parseEntityValue() (EntityValue, error) {
 	var quote rune
 	var err error
 	if quote, err = p.parseQuote(); err != nil {
-		return "", err
+		return nil, err
 	}
+
+	res := EntityValue{}
+
+	var str string
+	for {
+		if p.Test(quote) || p.isEnd() {
+			break
+		}
+
+		cur := p.cursor
+
+		if p.Test('&') {
+			if len(str) > 0 {
+				res = append(res, str)
+				str = ""
+			}
+
+			// try EntityRef
+			var eRef *EntityRef
+			eRef, err = p.parseEntityRef()
+			if err != nil {
+				p.cursor = cur
+				// try CharRef
+				var cRef *CharRef
+				cRef, err = p.parseCharRef()
+				if err != nil {
+					return nil, p.errorf("error AttValue")
+				}
+				res = append(res, cRef)
+			} else {
+				res = append(res, eRef)
+			}
+		} else if p.Test('%') {
+			var pRef *PERef
+			if pRef, err = p.parsePEReference(); err != nil {
+				return nil, err
+			}
+			res = append(res, pRef)
+		} else {
+			str += string(p.Get())
+			p.Step()
+		}
+	}
+
+	if len(str) > 0 {
+		res = append(res, str)
+		str = ""
+	}
+
+	if err = p.Must(quote); err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+// AttValue ::= '"' ([^<&"] | Reference)* '"' |  "'" ([^<&'] | Reference)* "'"
+func (p *Parser) parseAttValue() (AttValue, error) {
+	var quote rune
+	var err error
+	if quote, err = p.parseQuote(); err != nil {
+		return nil, err
+	}
+
+	res := AttValue{}
 
 	var str string
 	for {
 		if p.Test('<') {
-			return "", p.errorf("error AttValue")
+			return nil, p.errorf("error AttValue")
 		}
 		if p.Test(quote) || p.isEnd() {
 			break
 		}
 
-		if p.Test('&') {
-			var eRef EntityRef
-			if eRef, err = p.parseEntityReference(); err != nil {
-				return "", err
-			}
-			str += fmt.Sprintf("&%s;", eRef)
-		} else if p.Test('%') {
-			// PERef or single %
-			cur := p.cursor
+		cur := p.cursor
 
-			var peRef PERef
-			peRef, err = p.parsePEReference()
+		if p.Test('&') {
+			if len(str) > 0 {
+				res = append(res, str)
+				str = ""
+			}
+
+			// try EntityRef
+			var eRef *EntityRef
+			eRef, err = p.parseEntityRef()
 			if err != nil {
-				// parse as single %
 				p.cursor = cur
-				str += "%"
-				p.Step()
+				// try CharRef
+				var cRef *CharRef
+				cRef, err = p.parseCharRef()
+				if err != nil {
+					return nil, p.errorf("error AttValue")
+				}
+				res = append(res, cRef)
 			} else {
-				str += "%" + string(peRef) + ";"
+				res = append(res, eRef)
 			}
 		} else {
 			str += string(p.Get())
@@ -310,11 +374,16 @@ func (p *Parser) parseAttValue() (string, error) {
 		}
 	}
 
-	if err = p.Must(quote); err != nil {
-		return "", err
+	if len(str) > 0 {
+		res = append(res, str)
+		str = ""
 	}
 
-	return str, nil
+	if err = p.Must(quote); err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 // SystemLiteral ::= ('"' [^"]* '"') | ("'" [^']* "'")
@@ -394,8 +463,7 @@ func (p *Parser) parseComment() (Comment, error) {
 /// - Processing Instructions
 
 func (p *Parser) parsePI() (*PI, error) {
-	unimplemented("parsePI")
-	return nil, nil
+	panic("unimplemented parsePI")
 }
 
 /// - Document Type Definition
@@ -436,7 +504,7 @@ func (p *Parser) parseDoctype() (*DOCType, error) {
 				}
 				d.Markups = append(d.Markups, m)
 			} else if p.Test('%') {
-				var ref PERef
+				var ref *PERef
 				ref, err = p.parsePEReference()
 				if err != nil {
 					return nil, err
@@ -1027,47 +1095,199 @@ func (p *Parser) parseDefaultDecl() (*DefaultDecl, error) {
 	}
 }
 
+/// - Character Reference
+
+// CharRef ::= '&#' [0-9]+ ';' | '&#x' [0-9a-fA-F]+ ';'
+func (p *Parser) parseCharRef() (*CharRef, error) {
+	var ref CharRef
+	var err error
+
+	if p.Tests("&#x") {
+		ref.Prefix = "&#x"
+		p.StepN(len("&#x"))
+
+		r := p.Get()
+		if !isNum(r) {
+			return nil, p.errorf("error CharRef")
+		}
+
+		for isNum(r) {
+			ref.Value += string(r)
+			p.Step()
+			r = p.Get()
+		}
+	} else if p.Tests("&#") {
+		ref.Prefix = "&#"
+		p.StepN(len("&#"))
+
+		r := p.Get()
+		if !isNum(r) && !isAlpha(r) {
+			return nil, p.errorf("error CharRef")
+		}
+
+		for isNum(r) || isAlpha(r) {
+			ref.Value += string(r)
+			p.Step()
+			r = p.Get()
+		}
+	} else {
+		return nil, p.errorf("error CharRef")
+	}
+
+	if err = p.Must(';'); err != nil {
+		return nil, err
+	}
+
+	return &ref, nil
+}
+
 /// - Entity Reference
 
 // EntityRef ::= '&' Name ';'
-func (p *Parser) parseEntityReference() (EntityRef, error) {
+func (p *Parser) parseEntityRef() (*EntityRef, error) {
 	var err error
 	if err = p.Must('&'); err != nil {
-		return "", err
+		return nil, err
 	}
-	var n string
-	n, err = p.parseName()
+	var e EntityRef
+	e.Name, err = p.parseName()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if err = p.Must(';'); err != nil {
-		return "", err
+		return nil, err
 	}
-	return EntityRef(n), nil
+	return &e, nil
 }
 
 // PEReference ::= '%' Name ';'
-func (p *Parser) parsePEReference() (PERef, error) {
+func (p *Parser) parsePEReference() (*PERef, error) {
 	var err error
 	if err = p.Must('%'); err != nil {
-		return "", err
+		return nil, err
 	}
-	var n string
-	n, err = p.parseName()
+	var e PERef
+	e.Name, err = p.parseName()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if err = p.Must(';'); err != nil {
-		return "", err
+		return nil, err
 	}
-	return PERef(n), nil
+	return &e, nil
 }
 
 /// - Entity Declaration
+
 // EntityDecl ::= GEDecl |  PEDecl
 func (p *Parser) parseEntity() (*Entity, error) {
-	unimplemented("parseEntity")
-	return nil, nil
+	var err error
+	if err = p.Musts("<!ENTITY"); err != nil {
+		return nil, err
+	}
+	if err = p.parseSpace(); err != nil {
+		return nil, err
+	}
+
+	var e Entity
+
+	// PEDecl ::= '<!ENTITY' S '%' S Name S PEDef S? '>'
+	// GEDecl ::= '<!ENTITY' S Name S EntityDef S? '>'
+
+	if p.Test('%') {
+		e.Type = EntityType_PE
+
+		p.Step()
+
+		if err = p.parseSpace(); err != nil {
+			return nil, err
+		}
+	} else {
+		e.Type = EntityType_GE
+	}
+
+	if e.Name, err = p.parseName(); err != nil {
+		return nil, err
+	}
+
+	if err = p.parseSpace(); err != nil {
+		return nil, err
+	}
+
+	if e.Type == EntityType_PE {
+		// PEDef
+		e.Value, e.ExID, err = p.parsePEDef()
+	} else {
+		// EntityDef
+		e.Value, e.ExID, e.NData, err = p.parseEntityDef()
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	p.skipSpace()
+
+	if err = p.Must('>'); err != nil {
+		return nil, err
+	}
+
+	return &e, nil
+}
+
+// EntityDef ::= EntityValue | (ExternalID NDataDecl?)
+func (p *Parser) parseEntityDef() (EntityValue, *ExternalID, string, error) {
+	var value EntityValue
+	var ndata string
+	var ext *ExternalID
+	var err error
+
+	if p.Test('\'') || p.Test('"') {
+		value, err = p.parseEntityValue()
+		if err != nil {
+			return nil, nil, "", err
+		}
+		return value, nil, "", nil
+	} else if p.Tests("SYSTEM") || p.Tests("PUBLIC") {
+		ext, err = p.parseExternalID()
+		if err != nil {
+			return nil, nil, "", err
+		}
+
+		cur := p.cursor
+
+		ndata, err = p.parseNData()
+		if err != nil {
+			p.cursor = cur
+		}
+
+		return nil, ext, ndata, nil
+	} else {
+		return nil, nil, "", p.errorf("error EntityDef")
+	}
+}
+
+// PEDef ::= EntityValue | ExternalID
+func (p *Parser) parsePEDef() (EntityValue, *ExternalID, error) {
+	var value EntityValue
+	var ext *ExternalID
+	var err error
+
+	if p.Test('\'') || p.Test('"') {
+		value, err = p.parseEntityValue()
+		if err != nil {
+			return nil, nil, err
+		}
+		return value, nil, nil
+	} else if p.Tests("SYSTEM") || p.Tests("PUBLIC") {
+		ext, err = p.parseExternalID()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return nil, ext, nil
+	} else {
+		return nil, nil, p.errorf("error EntityDef")
+	}
 }
 
 /// - External Entity Declaration
@@ -1108,6 +1328,21 @@ func (p *Parser) parseExternalID() (*ExternalID, error) {
 	ext.System = sys
 
 	return &ext, nil
+}
+
+// NDataDecl ::= S 'NDATA' S Name
+func (p *Parser) parseNData() (string, error) {
+	var err error
+	if err = p.parseSpace(); err != nil {
+		return "", err
+	}
+	if err = p.Musts("NDATA"); err != nil {
+		return "", err
+	}
+	if err = p.parseSpace(); err != nil {
+		return "", err
+	}
+	return p.parseName()
 }
 
 /// - Encoding Declaration
@@ -1169,8 +1404,7 @@ func (p *Parser) parseEncName() (string, error) {
 
 // NotationDecl ::= '<!NOTATION' S Name S (ExternalID |  PublicID) S? '>'
 func (p *Parser) parseNotation() (*Notation, error) {
-	unimplemented("parseNotation")
-	return nil, nil
+	panic("unimplemented parseNotation")
 }
 
 /// - Others

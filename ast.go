@@ -1,5 +1,9 @@
 package xml
 
+import (
+	"fmt"
+)
+
 type (
 	Prolog struct {
 		*XMLDecl
@@ -16,7 +20,7 @@ type (
 		Name string
 		*ExternalID
 		Markups []Markup
-		PERef   PERef
+		PERef   *PERef
 	}
 
 	ExtIdent string
@@ -47,10 +51,22 @@ type (
 		Name string
 		Defs []*AttDef
 	}
-	Entity   struct{}
+	EntityType int
+	Entity     struct {
+		Name  string
+		Type  EntityType
+		Value EntityValue
+		ExID  *ExternalID
+		NData string
+	}
 	Notation struct{}
 	PI       struct{}
 	Comment  string
+)
+
+const (
+	EntityType_GE EntityType = iota
+	EntityType_PE
 )
 
 func (Element) Markup()  {}
@@ -78,7 +94,7 @@ type (
 	DefaultDeclType string
 	DefaultDecl     struct {
 		Type     DefaultDeclType
-		AttValue string
+		AttValue AttValue
 	}
 
 	NotationType struct {
@@ -154,8 +170,38 @@ func (Children) ContentSpec() {}
 func (Choice) ChoiceSeq() {}
 func (Seq) ChoiceSeq()    {}
 
-// Entity Ref
+// Ref
 type (
-	EntityRef string // & Name ;
-	PERef     string // % Name ;
+	Ref interface {
+		Ref()
+	}
+
+	// string or PERef or CharRef or EntityRef
+	EntityValue []interface{}
+	// string or CharRef or EntityRef
+	AttValue []interface{}
+
+	CharRef struct {
+		Prefix string // &# or &#x
+		Value  string
+	}
+	EntityRef struct {
+		Name string // & Name ;
+	}
+	PERef struct {
+		Name string // % Name ;
+	}
 )
+
+func (CharRef) Ref()   {}
+func (EntityRef) Ref() {}
+
+func (e CharRef) String() string {
+	return fmt.Sprintf("%s%s;", e.Prefix, e.Value)
+}
+func (e EntityRef) String() string {
+	return fmt.Sprintf("&%s;", e.Name)
+}
+func (e PERef) String() string {
+	return "%" + fmt.Sprintf(`%s;`, e.Name)
+}

@@ -165,13 +165,13 @@ func TestParser_parseAttValue(t *testing.T) {
 	tests := []struct {
 		name    string
 		source  string
-		want    string
+		want    AttValue
 		wantErr bool
 	}{
 		{
 			name:   "empty",
 			source: `""`,
-			want:   "",
+			want:   AttValue{},
 		},
 		{
 			name:    "not started with quote",
@@ -179,32 +179,41 @@ func TestParser_parseAttValue(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "error single <",
 			source:  `"<"`,
 			wantErr: true,
 		},
 		{
-			name:    "error only &",
+			name:    "error single &",
 			source:  `"&"`,
 			wantErr: true,
 		},
 		{
-			name:   "not error using & as entity reference",
+			name:   "EntityRef",
 			source: `"&a;"`,
-			want:   "&a;",
+			want: AttValue{
+				&EntityRef{Name: "a"},
+			},
 		},
 		{
-			name:   "single %",
-			source: `"%%%"`,
-			want:   "%%%",
+			name:   "CharRef",
+			source: `"&#11;"`,
+			want: AttValue{
+				&CharRef{Prefix: "&#", Value: "11"},
+			},
 		},
 		{
-			name:   "PERef",
-			source: `"%a;"`,
-			want:   "%a;",
+			name:   "multiple refs",
+			source: `"&#11;&#x20;&a;"`,
+			want: AttValue{
+				&CharRef{Prefix: "&#", Value: "11"},
+				&CharRef{Prefix: "&#x", Value: "20"},
+				&EntityRef{Name: "a"},
+			},
 		},
 		{
 			source: `"abcd"`,
-			want:   "abcd",
+			want:   AttValue{"abcd"},
 		},
 		{
 			name:    "different quotes",
@@ -220,7 +229,7 @@ func TestParser_parseAttValue(t *testing.T) {
 				t.Errorf("Parser.parseAttValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Parser.parseAttValue() = %v, want %v", got, tt.want)
 			}
 		})
@@ -391,6 +400,37 @@ func TestParser_parseMarkup(t *testing.T) {
 							},
 						},
 					},
+				},
+			},
+		},
+		{
+			name:   "attlist",
+			source: "<!ATTLIST task status (important|normal) #REQUIRED>",
+			want: &Attlist{
+				Name: "task",
+				Defs: []*AttDef{
+					&AttDef{
+						Name: "status",
+						Type: &Enum{
+							Cases: []string{"important", "normal"},
+						},
+						Decl: &DefaultDecl{
+							Type: REQUIRED,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "entity",
+			source: `<!ENTITY a SYSTEM
+			"http://example.com/a.gif">`,
+			want: &Entity{
+				Name: "a",
+				Type: EntityType_GE,
+				ExID: &ExternalID{
+					Identifier: ExtSystem,
+					System:     "http://example.com/a.gif",
 				},
 			},
 		},
@@ -1012,13 +1052,13 @@ func TestParser_parseAttType(t *testing.T) {
 		},
 		{
 			source: "NOTATION (a)",
-			want: NotationType{
+			want: &NotationType{
 				Names: []string{"a"},
 			},
 		},
 		{
 			source: "(a|b)",
-			want: Enum{
+			want: &Enum{
 				Cases: []string{"a", "b"},
 			},
 		},
@@ -1183,7 +1223,7 @@ func TestParser_parseDefaultDecl(t *testing.T) {
 			source: `#FIXED "a"`,
 			want: &DefaultDecl{
 				Type:     FIXED,
-				AttValue: "a",
+				AttValue: []interface{}{"a"},
 			},
 		},
 		{
@@ -1201,7 +1241,7 @@ func TestParser_parseDefaultDecl(t *testing.T) {
 			source: `"aa"`,
 			want: &DefaultDecl{
 				Type:     FIXED,
-				AttValue: "aa",
+				AttValue: []interface{}{"aa"},
 			},
 		},
 	}
@@ -1224,7 +1264,7 @@ func TestParser_parseEntityReference(t *testing.T) {
 	tests := []struct {
 		name    string
 		source  string
-		want    EntityRef
+		want    *EntityRef
 		wantErr bool
 	}{
 		{
@@ -1244,18 +1284,20 @@ func TestParser_parseEntityReference(t *testing.T) {
 		},
 		{
 			source: `&name;`,
-			want:   EntityRef("name"),
+			want: &EntityRef{
+				Name: "name",
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := NewParser(tt.source)
-			got, err := p.parseEntityReference()
+			got, err := p.parseEntityRef()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseEntityReference() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Parser.parseEntityReference() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1266,7 +1308,7 @@ func TestParser_parsePEReference(t *testing.T) {
 	tests := []struct {
 		name    string
 		source  string
-		want    PERef
+		want    *PERef
 		wantErr bool
 	}{
 		{
@@ -1286,7 +1328,9 @@ func TestParser_parsePEReference(t *testing.T) {
 		},
 		{
 			source: `%name;`,
-			want:   PERef("name"),
+			want: &PERef{
+				Name: "name",
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -1297,7 +1341,7 @@ func TestParser_parsePEReference(t *testing.T) {
 				t.Errorf("Parser.parsePEReference() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Parser.parsePEReference() = %v, want %v", got, tt.want)
 			}
 		})
