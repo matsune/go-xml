@@ -1413,6 +1413,48 @@ func TestParser_parseExternalID(t *testing.T) {
 	}
 }
 
+func TestParser_parseNData(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "no space",
+			source:  "NDATA aaa",
+			wantErr: true,
+		},
+		{
+			name:    "no NDATS",
+			source:  "  aaa",
+			wantErr: true,
+		},
+		{
+			name:    "no space after NDATA",
+			source:  " NDATAaaa",
+			wantErr: true,
+		},
+		{
+			source: " NDATA aaa",
+			want:   "aaa",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseNData()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseNData() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parseNData() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parseEncoding(t *testing.T) {
 	tests := []struct {
 		name    string
