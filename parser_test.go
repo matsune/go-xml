@@ -287,6 +287,63 @@ func TestParser_parseComment(t *testing.T) {
 	}
 }
 
+func TestParser_parseMarkup(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    Markup
+		wantErr bool
+	}{
+		{
+			name:    "unknown markup",
+			source:  "",
+			wantErr: true,
+		},
+		{
+			name:   "element",
+			source: "<!ELEMENT student (id|(a,b)?)>",
+			want: &Element{
+				Name: "student",
+				ContentSpec: &Children{
+					ChoiceSeq: &Choice{
+						CPs: []CP{
+							CP{
+								Name: "id",
+							},
+							CP{
+								ChoiceSeq: &Seq{
+									CPs: []CP{
+										CP{
+											Name: "a",
+										},
+										CP{
+											Name: "b",
+										},
+									},
+								},
+								Suffix: newRune('?'),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseMarkup()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseMarkup() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseMarkup() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parseStandalone(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -781,6 +838,72 @@ func TestParser_parseMixed(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Parser.parseMixed() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseAttlist(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *Attlist
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseAttlist()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseAttlist() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseAttlist() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parsePEReference(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    PERef
+		wantErr bool
+	}{
+		{
+			name:    "not starts with %",
+			source:  `name;`,
+			wantErr: true,
+		},
+		{
+			name:    "error parse name",
+			source:  `%;`,
+			wantErr: true,
+		},
+		{
+			name:    "not closed ;",
+			source:  `%name`,
+			wantErr: true,
+		},
+		{
+			source: `%name;`,
+			want:   PERef("name"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parsePEReference()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parsePEReference() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parsePEReference() = %v, want %v", got, tt.want)
 			}
 		})
 	}

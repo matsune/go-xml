@@ -386,12 +386,12 @@ func (p *Parser) parseDoctype() (*DOCType, error) {
 				}
 				d.Markups = append(d.Markups, m)
 			} else if p.Test('%') {
-				var ref string
+				var ref PERef
 				ref, err = p.parsePEReference()
 				if err != nil {
 					return nil, err
 				}
-				d.PEReference = ref
+				d.PERef = ref
 			} else if isSpace(p.Get()) {
 				err = p.parseSpace()
 				if err != nil {
@@ -734,9 +734,21 @@ func (p *Parser) parseAttlist() (*Attlist, error) {
 
 /// - Entity Reference
 
-func (p *Parser) parsePEReference() (string, error) {
-	unimplemented("parsePEReference")
-	return "", nil
+// PEReference ::= '%' Name ';'
+func (p *Parser) parsePEReference() (PERef, error) {
+	var err error
+	if err = p.Must('%'); err != nil {
+		return "", err
+	}
+	var n string
+	n, err = p.parseName()
+	if err != nil {
+		return "", err
+	}
+	if err = p.Must(';'); err != nil {
+		return "", err
+	}
+	return PERef(n), nil
 }
 
 /// - Entity Declaration

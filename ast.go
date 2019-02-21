@@ -15,8 +15,8 @@ type (
 	DOCType struct {
 		Name string
 		*ExternalID
-		Markups     []Markup
-		PEReference string
+		Markups []Markup
+		PERef   PERef
 	}
 
 	ExtIdent string
@@ -43,7 +43,10 @@ type (
 		Name string
 		ContentSpec
 	}
-	Attlist  struct{}
+	Attlist struct {
+		Name string
+		Defs []AttDef
+	}
 	Entity   struct{}
 	Notation struct{}
 	PI       struct{}
@@ -56,6 +59,58 @@ func (Entity) Markup()   {}
 func (Notation) Markup() {}
 func (PI) Markup()       {}
 func (Comment) Markup()  {}
+
+// Attribute Types
+type (
+	AttType interface {
+		AttType()
+	}
+
+	StringType    string
+	TokenizedType string
+
+	AttDef struct {
+		Name string
+		Type AttType
+		Decl DefaultDecl
+	}
+
+	DefaultDeclType string
+	DefaultDecl     struct {
+		Type DefaultDeclType
+		Refs []Ref
+	}
+
+	NotationType struct {
+		Types []string
+	}
+
+	Enum struct {
+		Nms []string
+	}
+)
+
+const (
+	REQUIRED DefaultDeclType = "#REQUIRED"
+	IMPLIED                  = "#IMPLIED"
+	FIXED                    = "#FIXED"
+)
+
+const (
+	Att_CDATA    StringType    = "CDATA"
+	Att_ID       TokenizedType = "ID"
+	Att_IDREF                  = "IDREF"
+	Att_IDREFS                 = "IDREFS"
+	Att_ENTITY                 = "ENTITY"
+	Att_ENTITIES               = "ENTITIES"
+	Att_NMTOKEN                = "NMTOKEN"
+	Att_NMTOKENS               = "NMTOKENS"
+)
+
+func (StringType) AttType()    {}
+func (TokenizedType) AttType() {}
+func (NotationType) AttType()  {}
+func (Enum) AttType()          {}
 
 // ContentSpec, ChoiseSeq
 type (
@@ -97,3 +152,15 @@ func (Children) ContentSpec() {}
 
 func (Choice) ChoiceSeq() {}
 func (Seq) ChoiceSeq()    {}
+
+// Entity Ref
+type (
+	Ref interface {
+		Ref()
+	}
+	EntityRef string // & Name ;
+	PERef     string // % Name ;
+)
+
+func (EntityRef) Ref() {}
+func (PERef) Ref()     {}
