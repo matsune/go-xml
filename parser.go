@@ -309,7 +309,7 @@ func (p *Parser) parseEntityValue() (EntityValue, error) {
 			}
 
 			var pRef *PERef
-			if pRef, err = p.parsePEReference(); err != nil {
+			if pRef, err = p.parsePERef(); err != nil {
 				return nil, err
 			}
 			res = append(res, pRef)
@@ -510,7 +510,7 @@ func (p *Parser) parseDoctype() (*DOCType, error) {
 				d.Markups = append(d.Markups, m)
 			} else if p.Test('%') {
 				var ref *PERef
-				ref, err = p.parsePEReference()
+				ref, err = p.parsePERef()
 				if err != nil {
 					return nil, err
 				}
@@ -1112,11 +1112,11 @@ func (p *Parser) parseCharRef() (*CharRef, error) {
 		p.StepN(len("&#x"))
 
 		r := p.Get()
-		if !isNum(r) {
+		if !isNum(r) && !isAlpha(r) {
 			return nil, p.errorf("error CharRef")
 		}
 
-		for isNum(r) {
+		for isNum(r) || isAlpha(r) {
 			ref.Value += string(r)
 			p.Step()
 			r = p.Get()
@@ -1126,11 +1126,11 @@ func (p *Parser) parseCharRef() (*CharRef, error) {
 		p.StepN(len("&#"))
 
 		r := p.Get()
-		if !isNum(r) && !isAlpha(r) {
+		if !isNum(r) {
 			return nil, p.errorf("error CharRef")
 		}
 
-		for isNum(r) || isAlpha(r) {
+		for isNum(r) {
 			ref.Value += string(r)
 			p.Step()
 			r = p.Get()
@@ -1166,7 +1166,7 @@ func (p *Parser) parseEntityRef() (*EntityRef, error) {
 }
 
 // PEReference ::= '%' Name ';'
-func (p *Parser) parsePEReference() (*PERef, error) {
+func (p *Parser) parsePERef() (*PERef, error) {
 	var err error
 	if err = p.Must('%'); err != nil {
 		return nil, err
