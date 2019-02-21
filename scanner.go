@@ -19,8 +19,12 @@ func (s *Scanner) errorf(f string, args ...interface{}) error {
 	return fmt.Errorf(h+f, args...)
 }
 
+func (s *Scanner) isEnd() bool {
+	return len(s.source) <= s.cursor
+}
+
 func (s *Scanner) Get() rune {
-	if len(s.source) <= s.cursor {
+	if s.isEnd() {
 		return 0
 	}
 	return rune(s.source[s.cursor])

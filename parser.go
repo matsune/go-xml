@@ -48,7 +48,7 @@ func (p *Parser) parseProlog() (*Prolog, error) {
 		pro.XMLDecl = xmlDecl
 	}
 	for p.isMisc() {
-		if err := p.parseMisc(); err != nil {
+		if _, err := p.parseMisc(); err != nil {
 			return nil, err
 		}
 	}
@@ -61,7 +61,7 @@ func (p *Parser) parseProlog() (*Prolog, error) {
 		pro.DOCType = doc
 
 		for p.isMisc() {
-			if err := p.parseMisc(); err != nil {
+			if _, err := p.parseMisc(); err != nil {
 				return nil, err
 			}
 		}
@@ -201,25 +201,27 @@ func (p *Parser) isMisc() bool {
 }
 
 // Misc ::= Comment | PI | S
-func (p *Parser) parseMisc() error {
+func (p *Parser) parseMisc() (interface{}, error) {
 	if p.Tests(`<!--`) {
 		// ignore comment
-		_, err := p.parseComment()
+		c, err := p.parseComment()
 		if err != nil {
-			return err
+			return nil, err
 		}
+		return c, nil
 	} else if p.Tests(`<?`) {
 		// ignore PI
-		_, err := p.parsePI()
+		pi, err := p.parsePI()
 		if err != nil {
-			return err
+			return nil, err
 		}
+		return pi, err
 	} else if isSpace(p.Get()) {
 		p.skipSpace()
+		return nil, nil
 	} else {
-		return p.errorf("error while parsing misc")
+		return nil, p.errorf("error while parsing misc")
 	}
-	return nil
 }
 
 /// - White Space
@@ -277,11 +279,12 @@ func (p *Parser) parseSystemLiteral() (string, error) {
 	for !p.Test(quote) {
 		lit += string(p.Get())
 		p.Step()
-	}
 
-	if err = p.Must(quote); err != nil {
-		return "", err
+		if p.isEnd() {
+			return "", p.errorf("could not find quote %c", quote)
+		}
 	}
+	p.Step()
 
 	return lit, nil
 }
@@ -505,14 +508,10 @@ func (p *Parser) parseElement() (*Element, error) {
 // contentspec ::= 'EMPTY' | 'ANY' | Mixed | children
 func (p *Parser) parseContentSpec() (ContentSpec, error) {
 	if p.Tests("EMPTY") {
-		if err := p.Musts("EMPTY"); err != nil {
-			return nil, err
-		}
+		p.StepN(len("EMPTY"))
 		return &EMPTY{}, nil
 	} else if p.Tests("ANY") {
-		if err := p.Musts("ANY"); err != nil {
-			return nil, err
-		}
+		p.StepN(len("ANY"))
 		return &ANY{}, nil
 	} else {
 		var err error
@@ -579,8 +578,7 @@ func (p *Parser) parseChildren() (*Children, error) {
 func (p *Parser) parseCP() (*CP, error) {
 	var cp CP
 	var err error
-	if p.Test('(') {
-		// choice or seq
+	if p.Test('(') { // choice or seq
 		cur := p.cursor
 
 		var choice *Choice
@@ -699,7 +697,11 @@ func (p *Parser) parseMixed() (*Mixed, error) {
 	for {
 		p.skipSpace()
 		if p.Test(')') {
+			p.Step()
 			break
+		}
+		if p.isEnd() {
+			return nil, p.errorf("could not find ')'")
 		}
 		var err error
 		if err = p.Must('|'); err != nil {
@@ -709,13 +711,9 @@ func (p *Parser) parseMixed() (*Mixed, error) {
 		var n string
 		n, err = p.parseName()
 		if err != nil {
-			return nil, nil
+			return nil, err
 		}
 		m.Names = append(m.Names, n)
-	}
-
-	if err := p.Must(')'); err != nil {
-		return nil, err
 	}
 
 	if len(m.Names) > 0 {
@@ -754,14 +752,10 @@ func (p *Parser) parseEntity() (*Entity, error) {
 func (p *Parser) parseExternalID() (*ExternalID, error) {
 	var ext ExternalID
 	if p.Tests(string(ExtSystem)) {
-		if err := p.Musts(string(ExtSystem)); err != nil {
-			return nil, err
-		}
+		p.StepN(len(ExtSystem))
 		ext.Identifier = ExtSystem
 	} else if p.Tests(string(ExtPublic)) {
-		if err := p.Musts(string(ExtPublic)); err != nil {
-			return nil, err
-		}
+		p.StepN(len(ExtPublic))
 		ext.Identifier = ExtPublic
 	} else {
 		return nil, p.errorf("error while parsing ExternalID")

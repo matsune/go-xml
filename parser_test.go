@@ -129,6 +129,122 @@ func TestParser_parseVersion(t *testing.T) {
 	}
 }
 
+func TestParser_parseName(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "starts with null char",
+			source:  fmt.Sprintf("%caaa", 0),
+			wantErr: true,
+		},
+		{
+			source: ":abc",
+			want:   ":abc",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseName()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parseName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseSystemLiteral(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "not starts with quote",
+			source:  `aaa`,
+			wantErr: true,
+		},
+		{
+			name:    "different quotes",
+			source:  `'a"`,
+			wantErr: true,
+		},
+		{
+			name:   "empty literal",
+			source: `''`,
+			want:   "",
+		},
+		{
+			source: `"aaa"`,
+			want:   "aaa",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseSystemLiteral()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseSystemLiteral() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parseSystemLiteral() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parsePubidLiteral(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "not starts with quote",
+			source:  `aaa`,
+			wantErr: true,
+		},
+		{
+			name:    "different quotes",
+			source:  `'a"`,
+			wantErr: true,
+		},
+		{
+			name:   "empty literal",
+			source: `''`,
+			want:   "",
+		},
+		{
+			source: `"aaa"`,
+			want:   "aaa",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parsePubidLiteral()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parsePubidLiteral() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parsePubidLiteral() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parseComment(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -171,123 +287,6 @@ func TestParser_parseComment(t *testing.T) {
 	}
 }
 
-func TestParser_parseDoctype(t *testing.T) {
-	tests := []struct {
-		name    string
-		source  string
-		want    *DOCType
-		wantErr bool
-	}{
-		{
-			name:    "no '!'",
-			source:  `<DOCTYPE document SYSTEM "subjects.dtd">`,
-			wantErr: true,
-		},
-		{
-			name:    "no space between DOCTYPE and name",
-			source:  `<!DOCTYPEdocument SYSTEM "subjects.dtd">`,
-			wantErr: true,
-		},
-		{
-			name:    "no name",
-			source:  `<!DOCTYPE >`,
-			wantErr: true,
-		},
-		{
-			name:    "no system literal",
-			source:  `<!DOCTYPE doc SYSTEM>`,
-			wantErr: true,
-		},
-		{
-			name:    "no end tag",
-			source:  `<!DOCTYPE doc SYSTEM "subjects.dtd" `,
-			wantErr: true,
-		},
-		{
-			name:   "has ExternalID",
-			source: `<!DOCTYPE doc SYSTEM "subjects.dtd" >`,
-			want: &DOCType{
-				Name: "doc",
-				ExternalID: &ExternalID{
-					Identifier: ExtSystem,
-					System:     "subjects.dtd",
-				},
-			},
-		},
-		{
-			source: `<!DOCTYPE student [
-				<!ELEMENT student (surname,firstname*,dob?,(origin|sex)?)>
-				<!ELEMENT surname (#PCDATA)>
-				<!ELEMENT firstname (#PCDATA)>
-				<!ELEMENT sex (#PCDATA)>
-			]>`,
-			want: &DOCType{
-				Name: "student",
-				Markups: []Markup{
-					&Element{
-						Name: "student",
-						ContentSpec: &Children{
-							ChoiceSeq: &Seq{
-								CPs: []CP{
-									CP{
-										Name: "surname",
-									},
-									CP{
-										Name:   "firstname",
-										Suffix: newRune('*'),
-									},
-									CP{
-										Name:   "dob",
-										Suffix: newRune('?'),
-									},
-									CP{
-										ChoiceSeq: &Choice{
-											CPs: []CP{
-												CP{
-													Name: "origin",
-												},
-												CP{
-													Name: "sex",
-												},
-											},
-										},
-										Suffix: newRune('?'),
-									},
-								},
-							},
-						},
-					},
-					&Element{
-						Name:        "surname",
-						ContentSpec: &Mixed{},
-					},
-					&Element{
-						Name:        "firstname",
-						ContentSpec: &Mixed{},
-					},
-					&Element{
-						Name:        "sex",
-						ContentSpec: &Mixed{},
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseDoctype()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Parser.parseDoctype() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Parser.parseDoctype() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestParser_parseStandalone(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -312,7 +311,7 @@ func TestParser_parseStandalone(t *testing.T) {
 		},
 		{
 			name:    "no quote",
-			source:  ` stand=yes`,
+			source:  ` standalone=yes`,
 			wantErr: true,
 		},
 		{
@@ -349,6 +348,509 @@ func TestParser_parseStandalone(t *testing.T) {
 	}
 }
 
+func TestParser_parseElement(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *Element
+		wantErr bool
+	}{
+		{
+			name:    "invalid head",
+			source:  `<ELEMENT student (id)>`,
+			wantErr: true,
+		},
+		{
+			name:    "no space",
+			source:  `<!ELEMENTstudent (id)>`,
+			wantErr: true,
+		},
+		{
+			name:    "name error",
+			source:  `<!ELEMENT (id)>`,
+			wantErr: true,
+		},
+		{
+			name:    "no space after name name",
+			source:  `<!ELEMENT student(id)>`,
+			wantErr: true,
+		},
+		{
+			name:    "invalid content spec",
+			source:  `<!ELEMENT student ()>`,
+			wantErr: true,
+		},
+		{
+			name:    "not closed",
+			source:  `<!ELEMENT student (id)`,
+			wantErr: true,
+		},
+		{
+			name:   "simple element",
+			source: `<!ELEMENT student (id)>`,
+			want: &Element{
+				Name: "student",
+				ContentSpec: &Children{
+					ChoiceSeq: &Choice{
+						CPs: []CP{
+							CP{
+								Name: "id",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseElement()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseElement() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseElement() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseContentSpec(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    ContentSpec
+		wantErr bool
+	}{
+		{
+			name:   "parse EMPTY",
+			source: "EMPTY",
+			want:   &EMPTY{},
+		},
+		{
+			name:   "parse ANY",
+			source: "ANY",
+			want:   &ANY{},
+		},
+		{
+			name:   "parse mixed",
+			source: "(#PCDATA)",
+			want:   &Mixed{},
+		},
+		{
+			name:   "parse children",
+			source: "(id)",
+			want: &Children{
+				ChoiceSeq: &Choice{
+					CPs: []CP{
+						CP{
+							Name: "id",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:    "error",
+			source:  "(id",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseContentSpec()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseContentSpec() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseContentSpec() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseChildren(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *Children
+		wantErr bool
+	}{
+		{
+			name:    "parse error",
+			source:  "id|name)",
+			wantErr: true,
+		},
+		{
+			name:   "choice children",
+			source: "(id|name)",
+			want: &Children{
+				ChoiceSeq: &Choice{
+					CPs: []CP{
+						CP{
+							Name: "id",
+						},
+						CP{
+							Name: "name",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:   "choice children with suffix",
+			source: "(id|name)+",
+			want: &Children{
+				ChoiceSeq: &Choice{
+					CPs: []CP{
+						CP{
+							Name: "id",
+						},
+						CP{
+							Name: "name",
+						},
+					},
+				},
+				Suffix: newRune('+'),
+			},
+		},
+		{
+			name:   "seq children with suffix",
+			source: "(id,name)+",
+			want: &Children{
+				ChoiceSeq: &Seq{
+					CPs: []CP{
+						CP{
+							Name: "id",
+						},
+						CP{
+							Name: "name",
+						},
+					},
+				},
+				Suffix: newRune('+'),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseChildren()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseChildren() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseChildren() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseCP(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *CP
+		wantErr bool
+	}{
+		{
+			name:    "error while parsing seq",
+			source:  "(surname,)",
+			wantErr: true,
+		},
+		{
+			name:   "nested",
+			source: "(surname,(origin|sex)?)",
+			want: &CP{
+				ChoiceSeq: &Seq{
+					CPs: []CP{
+						CP{
+							Name: "surname",
+						},
+						CP{
+							ChoiceSeq: &Choice{
+								CPs: []CP{
+									CP{
+										Name: "origin",
+									},
+									CP{
+										Name: "sex",
+									},
+								},
+							},
+							Suffix: newRune('?'),
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseCP()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseCP() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseCP() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseChoice(t *testing.T) {
+	type fields struct {
+		Scanner *Scanner
+	}
+	tests := []struct {
+		name    string
+		source  string
+		want    *Choice
+		wantErr bool
+	}{
+		{
+			name:    "not starts with (",
+			source:  `surname|firstname)`,
+			wantErr: true,
+		},
+		{
+			name:    "error no cp",
+			source:  `()`,
+			wantErr: true,
+		},
+		{
+			name: "error parsing cp",
+			source: `(surname|
+				)`,
+			wantErr: true,
+		},
+		{
+			name:    "not closed",
+			source:  `(surname|firstname`,
+			wantErr: true,
+		},
+		{
+			source: `(surname|firstname)`,
+			want: &Choice{
+				CPs: []CP{
+					CP{
+						Name: "surname",
+					},
+					CP{
+						Name: "firstname",
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseChoice()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseChoice() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseChoice() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseSeq(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *Seq
+		wantErr bool
+	}{
+		{
+			name:    "not starts with (",
+			source:  `surname,firstname*,dob?,(origin|sex)?)`,
+			wantErr: true,
+		},
+		{
+			name:    "error no cp",
+			source:  `()`,
+			wantErr: true,
+		},
+		{
+			name: "error parsing cp",
+			source: `(surname,
+				)`,
+			wantErr: true,
+		},
+		{
+			name:    "not closed",
+			source:  `(surname,firstname*`,
+			wantErr: true,
+		},
+		{
+			source: `(surname,firstname*)`,
+			want: &Seq{
+				CPs: []CP{
+					CP{
+						Name: "surname",
+					},
+					CP{
+						Name:   "firstname",
+						Suffix: newRune('*'),
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseSeq()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseSeq() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseSeq() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseMixed(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *Mixed
+		wantErr bool
+	}{
+		{
+			name:    "not starts with (",
+			source:  "#PCDATA)*",
+			wantErr: true,
+		},
+		{
+			name:    "no #PCDATA",
+			source:  "()*",
+			wantErr: true,
+		},
+		{
+			name:    "not | between #PCDATA and )",
+			source:  "(#PCDATA  a)*",
+			wantErr: true,
+		},
+		{
+			name:    "no name after #PCDATA|",
+			source:  "(#PCDATA|)*",
+			wantErr: true,
+		},
+		{
+			name:    "not closed",
+			source:  "(#PCDATA|a",
+			wantErr: true,
+		},
+		{
+			name:    "error if has names but no *",
+			source:  "(#PCDATA|a)",
+			wantErr: true,
+		},
+		{
+			source: "(#PCDATA|a  |  b)*",
+			want: &Mixed{
+				Names: []string{"a", "b"},
+			},
+		},
+		{
+			source: "(  #PCDATA  )",
+			want:   &Mixed{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseMixed()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseMixed() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseMixed() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseExternalID(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *ExternalID
+		wantErr bool
+	}{
+		{
+			name:    "not starts with SYSTEM or PUBLIC",
+			source:  `SYS "aaa"`,
+			wantErr: true,
+		},
+		{
+			name:    "no space",
+			source:  `SYSTEM"aaa"`,
+			wantErr: true,
+		},
+		{
+			name:    "pubid literal error",
+			source:  `PUBLIC aa"`,
+			wantErr: true,
+		},
+		{
+			name:    "no space after pubid literal",
+			source:  `PUBLIC "aa"`,
+			wantErr: true,
+		},
+		{
+			name:    "system literal error",
+			source:  `SYSTEM aa"`,
+			wantErr: true,
+		},
+		{
+			name:   "public no error",
+			source: `PUBLIC "pub" "sys"`,
+			want: &ExternalID{
+				Identifier: ExtPublic,
+				Pubid:      "pub",
+				System:     "sys",
+			},
+		},
+		{
+			name:   "system no error",
+			source: `SYSTEM "sys"`,
+			want: &ExternalID{
+				Identifier: ExtSystem,
+				System:     "sys",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseExternalID()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseExternalID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseExternalID() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parseEncoding(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -358,17 +860,22 @@ func TestParser_parseEncoding(t *testing.T) {
 	}{
 		{
 			name:    "not starts with spaces",
-			source:  `encoding = "UTF-8"`,
+			source:  `encoding="UTF-8"`,
 			wantErr: true,
 		},
 		{
 			name:    "typo encoding",
-			source:  ` encod = "UTF-8"`,
+			source:  ` enco="UTF-8"`,
 			wantErr: true,
 		},
 		{
 			name:    "not equal",
 			source:  ` encoding:"UTF-8"`,
+			wantErr: true,
+		},
+		{
+			name:    "no quote",
+			source:  ` encoding=UTF-8`,
 			wantErr: true,
 		},
 		{
