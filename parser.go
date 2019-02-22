@@ -21,19 +21,31 @@ func NewParser(str string) *Parser {
 // - Document
 
 // document ::= prolog element Misc*
-func (p *Parser) Parse() error {
-	pro, err := p.parseProlog()
+func (p *Parser) Parse() (*XML, error) {
+	var x XML
+	var err error
+	x.Prolog, err = p.parseProlog()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	fmt.Println(">>>", pro)
 
-	elem, err := p.parseElement()
+	x.Element, err = p.parseElement()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	fmt.Println(">>>", elem)
-	return nil
+
+	for {
+		cur := p.cursor
+		var misc interface{}
+		if misc, err = p.parseMisc(); err != nil {
+			p.cursor = cur
+			err = nil
+			break
+		}
+		x.Misc = append(x.Misc, misc)
+	}
+
+	return &x, nil
 }
 
 /// - Prolog
@@ -212,14 +224,12 @@ func (p *Parser) parseVersionNum() (string, error) {
 // Misc ::= Comment | PI | S
 func (p *Parser) parseMisc() (interface{}, error) {
 	if p.Tests(`<!--`) {
-		// ignore comment
 		c, err := p.parseComment()
 		if err != nil {
 			return nil, err
 		}
 		return c, nil
 	} else if p.Tests(`<?`) {
-		// ignore PI
 		pi, err := p.parsePI()
 		if err != nil {
 			return nil, err

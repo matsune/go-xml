@@ -8,6 +8,65 @@ import (
 
 func newRune(r rune) *rune { return &r }
 
+func TestParser_Parse(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *XML
+		wantErr bool
+	}{
+		{
+			source: `<?xml version="1.0" standalone="no" ?><!DOCTYPE document SYSTEM "subjects.dtd"><document><title>Subjects available in Mechanical Engineering.</title><subjectID>2.303</subjectID></document>`,
+			want: &XML{
+				Prolog: &Prolog{
+					XMLDecl: &XMLDecl{
+						Version:    "1.0",
+						Standalone: false,
+					},
+					DOCType: &DOCType{
+						Name: "document",
+						ExtID: &ExternalID{
+							Identifier: ExtSystem,
+							System:     "subjects.dtd",
+						},
+					},
+				},
+				Element: &Element{
+					Name: "document",
+					Contents: []interface{}{
+						&Element{
+							Name: "title",
+							Contents: []interface{}{
+								"Subjects available in Mechanical Engineering.",
+							},
+						},
+						&Element{
+							Name: "subjectID",
+							Contents: []interface{}{
+								"2.303",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.Parse()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.Parse() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				fmt.Println(">>>", got.Element, "\n", tt.want.Element)
+				t.Errorf("Parser.Parse() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parseProlog(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -40,6 +99,25 @@ func TestParser_parseProlog(t *testing.T) {
 						Identifier: ExtPublic,
 						Pubid:      "-//W3C//DTD XHTML 1.0 Transitional//EN",
 						System:     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd",
+					},
+				},
+			},
+		},
+		{
+			source: `<?xml version="1.0" standalone="no" ?>
+
+			<!--define the location of the
+			  external DTD using a relative URL address-->
+			<!DOCTYPE document SYSTEM "subjects.dtd">`,
+			want: &Prolog{
+				XMLDecl: &XMLDecl{
+					Version: "1.0",
+				},
+				DOCType: &DOCType{
+					Name: "document",
+					ExtID: &ExternalID{
+						Identifier: ExtSystem,
+						System:     "subjects.dtd",
 					},
 				},
 			},

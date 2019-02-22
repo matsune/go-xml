@@ -5,7 +5,16 @@ import (
 )
 
 type (
+	XML struct {
+		*Prolog
+		*Element
+		Misc []interface{}
+	}
+)
+
+type (
 	Prolog struct {
+		// ignoring Miscs
 		*XMLDecl
 		*DOCType
 	}
@@ -31,6 +40,50 @@ type (
 		System     string
 	}
 )
+
+func (x XMLDecl) String() string {
+	str := "<?xml"
+
+	str += fmt.Sprintf(` version="%s"`, x.Version)
+
+	if len(x.Encoding) > 0 {
+		str += fmt.Sprintf(` encoding="%s"`, x.Encoding)
+	}
+
+	stdStr := "no"
+	if x.Standalone {
+		stdStr = "yes"
+	}
+	str += fmt.Sprintf(` standalone="%s" ?>`, stdStr)
+
+	return str
+}
+
+func (d DOCType) String() string {
+	str := "<!DOCTYPE"
+
+	str += fmt.Sprintf(` %s `, d.Name)
+
+	if d.ExtID != nil {
+		str += fmt.Sprintf("%v ", d.ExtID)
+	}
+
+	if len(d.Markups) > 0 {
+		str += "["
+	}
+	for i, m := range d.Markups {
+		if i > 0 {
+			str += " "
+		}
+		str += fmt.Sprintf("%v", m)
+	}
+	if len(d.Markups) > 0 {
+		str += "]"
+	}
+
+	str += ">"
+	return str
+}
 
 const (
 	ExtSystem ExtIdent = "SYSTEM"
