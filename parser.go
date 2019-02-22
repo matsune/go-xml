@@ -534,8 +534,12 @@ func (p *Parser) parseDoctype() (*DOCType, error) {
 		if err != nil {
 			return nil, err
 		}
-		d.ExternalID = ext
-	} else if p.Test('[') {
+		d.ExtID = ext
+
+		p.skipSpace()
+	}
+
+	if p.Test('[') {
 		p.Step()
 
 		for {
@@ -554,10 +558,7 @@ func (p *Parser) parseDoctype() (*DOCType, error) {
 				}
 				d.PERef = ref
 			} else if isSpace(p.Get()) {
-				err = p.parseSpace()
-				if err != nil {
-					return nil, err
-				}
+				p.skipSpace()
 			} else {
 				break
 			}

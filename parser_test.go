@@ -532,6 +532,124 @@ func TestParser_parsePITarget(t *testing.T) {
 		})
 	}
 }
+
+func TestParser_parseDoctype(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *DOCType
+		wantErr bool
+	}{
+		{
+			name:    "not starts with <!DOCTYPE",
+			source:  `<DOC name >`,
+			wantErr: true,
+		},
+		{
+			name:    "no space between <!DOCTYPE and name",
+			source:  `<!DOCTYPEname >`,
+			wantErr: true,
+		},
+		{
+			name:    "invalid name",
+			source:  `<!DOCTYPE ' >`,
+			wantErr: true,
+		},
+		{
+			name:    "invalid externalID",
+			source:  `<!DOCTYPE name PUBLIC >`,
+			wantErr: true,
+		},
+		{
+			name: "error while parsing markup",
+			source: `<!DOCTYPE name [
+				<!ELEMENT 
+			] >`,
+			wantErr: true,
+		},
+		{
+			name: "error while parsing PERef",
+			source: `<!DOCTYPE name [
+				%PEREF
+			] >`,
+			wantErr: true,
+		},
+		{
+			name:    "not closed ]",
+			source:  `<!DOCTYPE name [`,
+			wantErr: true,
+		},
+		{
+			name:    "not closed tag",
+			source:  `<!DOCTYPE name []`,
+			wantErr: true,
+		},
+		{
+			name: "author element and entity",
+			source: `<!DOCTYPE author [
+				<!ELEMENT author (#PCDATA)>
+				<!ENTITY js "Jo Smith">
+			  ]>`,
+			want: &DOCType{
+				Name: "author",
+				Markups: []Markup{
+					&Element{
+						Name:        "author",
+						ContentSpec: &Mixed{},
+					},
+					&Entity{
+						Name: "js",
+						Type: EntityType_GE,
+						Value: EntityValue{
+							"Jo Smith",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "author element and entity with externalID",
+			source: `<!DOCTYPE author SYSTEM 'system' [
+				<!ELEMENT author (#PCDATA)>
+				<!ENTITY js "Jo Smith">
+			  ]>`,
+			want: &DOCType{
+				Name: "author",
+				ExtID: &ExternalID{
+					Identifier: ExtSystem,
+					System:     "system",
+				},
+				Markups: []Markup{
+					&Element{
+						Name:        "author",
+						ContentSpec: &Mixed{},
+					},
+					&Entity{
+						Name: "js",
+						Type: EntityType_GE,
+						Value: EntityValue{
+							"Jo Smith",
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseDoctype()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseDoctype() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseDoctype() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parseMarkup(t *testing.T) {
 	tests := []struct {
 		name    string

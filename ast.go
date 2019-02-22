@@ -17,8 +17,8 @@ type (
 	}
 
 	DOCType struct {
-		Name string
-		*ExternalID
+		Name    string
+		ExtID   *ExternalID
 		Markups []Markup
 		PERef   *PERef
 	}
