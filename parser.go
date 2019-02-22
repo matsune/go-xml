@@ -752,13 +752,22 @@ func (p *Parser) parseETag() (string, error) {
 
 /// - Content of Elements
 
+func isOnlySpaces(str string) bool {
+	for _, r := range []rune(str) {
+		if !isSpace(r) {
+			return false
+		}
+	}
+	return true
+}
+
 // content ::= (element | CharData | Reference | CDSect | PI | Comment)*
 func (p *Parser) parseContents() []interface{} {
-	// '<'Name 					-> Element
-	// '&'Name or '&#'			-> Ref
-	// '<![CDATA['				-> CDSect
-	// '<?'						-> PI
-	// '<!--'					-> Comment
+	// '<'Name 			-> Element
+	// '&'Name or '&#'	-> Ref
+	// '<![CDATA['		-> CDSect
+	// '<?'				-> PI
+	// '<!--'			-> Comment
 	// Not starts with '&' or '<'
 	// and not contains ']]>'	-> CharData
 	// Others 					-> return
@@ -780,7 +789,9 @@ func (p *Parser) parseContents() []interface{} {
 				break
 			}
 			if len(charData) > 0 {
-				res = append(res, charData)
+				if !isOnlySpaces(charData) {
+					res = append(res, charData)
+				}
 				charData = ""
 			}
 			res = append(res, i)
@@ -814,7 +825,9 @@ func (p *Parser) parseContents() []interface{} {
 				}
 			}
 			if len(charData) > 0 {
-				res = append(res, charData)
+				if !isOnlySpaces(charData) {
+					res = append(res, charData)
+				}
 				charData = ""
 			}
 			res = append(res, i)
@@ -829,7 +842,9 @@ func (p *Parser) parseContents() []interface{} {
 		}
 	}
 	if len(charData) > 0 {
-		res = append(res, charData)
+		if !isOnlySpaces(charData) {
+			res = append(res, charData)
+		}
 	}
 	return res
 }

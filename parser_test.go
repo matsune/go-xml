@@ -16,7 +16,12 @@ func TestParser_Parse(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			source: `<?xml version="1.0" standalone="no" ?><!DOCTYPE document SYSTEM "subjects.dtd"><document><title>Subjects available in Mechanical Engineering.</title><subjectID>2.303</subjectID></document>`,
+			source: `<?xml version="1.0" standalone="no" ?>
+			<!DOCTYPE document SYSTEM "subjects.dtd">
+			<document>
+				<title>Subjects available in Mechanical Engineering.</title>
+				<subjectID>2.303</subjectID>
+			</document>`,
 			want: &XML{
 				Prolog: &Prolog{
 					XMLDecl: &XMLDecl{
@@ -60,7 +65,6 @@ func TestParser_Parse(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				fmt.Println(">>>", got.Element, "\n", tt.want.Element)
 				t.Errorf("Parser.Parse() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1242,6 +1246,12 @@ func TestParser_parseContents(t *testing.T) {
 			name:   "empty should return nil",
 			source: "",
 			want:   nil,
+		},
+		{
+			name: "ignore only spaces",
+			source: `   
+			`,
+			want: nil,
 		},
 		{
 			name:   "end content",
