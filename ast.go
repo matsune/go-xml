@@ -62,14 +62,14 @@ func (x XMLDecl) String() string {
 func (d DOCType) String() string {
 	str := "<!DOCTYPE"
 
-	str += fmt.Sprintf(` %s `, d.Name)
+	str += fmt.Sprintf(` %s`, d.Name)
 
 	if d.ExtID != nil {
-		str += fmt.Sprintf("%v ", d.ExtID)
+		str += fmt.Sprintf(" %v", d.ExtID)
 	}
 
 	if len(d.Markups) > 0 {
-		str += "["
+		str += " ["
 	}
 	for i, m := range d.Markups {
 		if i > 0 {
@@ -89,6 +89,17 @@ const (
 	ExtSystem ExtIdent = "SYSTEM"
 	ExtPublic          = "PUBLIC"
 )
+
+func (e ExternalID) String() string {
+	str := string(e.Identifier)
+	if len(e.Pubid) > 0 {
+		str += fmt.Sprintf(" %q", e.Pubid)
+	}
+	if len(e.System) > 0 {
+		str += fmt.Sprintf(" %q", e.System)
+	}
+	return str
+}
 
 // Markup
 type (
@@ -134,6 +145,10 @@ func (Entity) Markup()      {}
 func (Notation) Markup()    {}
 func (PI) Markup()          {}
 func (Comment) Markup()     {}
+
+func (c Comment) String() string {
+	return fmt.Sprintf("<!--%s-->", string(c))
+}
 
 // Attribute Types
 type (
