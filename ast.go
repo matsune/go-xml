@@ -146,6 +146,43 @@ func (Notation) Markup()    {}
 func (PI) Markup()          {}
 func (Comment) Markup()     {}
 
+func (a Attlist) String() string {
+	str := fmt.Sprintf(`<!ATTLIST %s`, a.Name)
+	for _, v := range a.Defs {
+		str += fmt.Sprintf("%s", v)
+	}
+	str += ">"
+	return str
+}
+func (e Entity) String() string {
+	str := `<!ENTITY`
+	if e.Type == EntityType_PE {
+		str += " %"
+	}
+	str += fmt.Sprintf(" %s", e.Name)
+	if len(e.Value) > 0 {
+		str += fmt.Sprintf(" %s", e.Value)
+	} else {
+		str += fmt.Sprintf(" %s", e.ExtID)
+
+		if len(e.NData) > 0 {
+			str += fmt.Sprintf(" NDATA %s", e.NData)
+		}
+	}
+	str += ">"
+	return str
+}
+func (n Notation) String() string {
+	return fmt.Sprintf(`<!NOTATION %s %s>`, n.Name, n.ExtID)
+}
+func (p PI) String() string {
+	str := fmt.Sprintf(`<?%s`, p.Target)
+	if len(p.Instruction) > 0 {
+		str += fmt.Sprintf(` %s`, p.Instruction)
+	}
+	str += "?>"
+	return str
+}
 func (c Comment) String() string {
 	return fmt.Sprintf("<!--%s-->", string(c))
 }
@@ -266,6 +303,24 @@ type (
 		Name string // % Name ;
 	}
 )
+
+func (e EntityValue) String() string {
+	str := `"`
+	for _, v := range e {
+		str += fmt.Sprint(v)
+	}
+	str += `"`
+	return str
+}
+
+func (a AttValue) String() string {
+	str := `"`
+	for _, v := range a {
+		str += fmt.Sprint(v)
+	}
+	str += `"`
+	return str
+}
 
 func (CharRef) Ref()   {}
 func (EntityRef) Ref() {}

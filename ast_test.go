@@ -144,6 +144,190 @@ func TestExternalID_String(t *testing.T) {
 	}
 }
 
+func TestEntity_String(t *testing.T) {
+	type fields struct {
+		Name  string
+		Type  EntityType
+		Value EntityValue
+		ExtID *ExternalID
+		NData string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "GEDecl, EntityValue",
+			fields: fields{
+				Name: "name",
+				Type: EntityType_GE,
+				Value: EntityValue{
+					"value",
+					PERef{
+						Name: "peref",
+					},
+				},
+			},
+			want: `<!ENTITY name "value%peref;">`,
+		},
+		{
+			name: "GEDecl, ExternalID, NData",
+			fields: fields{
+				Name: "name",
+				Type: EntityType_GE,
+				ExtID: &ExternalID{
+					Identifier: ExtPublic,
+					Pubid:      "pubid",
+					System:     "system",
+				},
+				NData: "ndata",
+			},
+			want: `<!ENTITY name PUBLIC "pubid" "system" NDATA ndata>`,
+		},
+		{
+			name: "PEDecl, ExternalID",
+			fields: fields{
+				Name: "name",
+				Type: EntityType_PE,
+				ExtID: &ExternalID{
+					Identifier: ExtSystem,
+					System:     "system",
+				},
+			},
+			want: `<!ENTITY % name SYSTEM "system">`,
+		},
+		{
+			name: "PEDecl, EntityValue",
+			fields: fields{
+				Name: "name",
+				Type: EntityType_PE,
+				Value: EntityValue{
+					"string",
+					PERef{
+						Name: "peref",
+					},
+					CharRef{
+						Prefix: "&#",
+						Value:  "0",
+					},
+					EntityRef{
+						Name: "entityref",
+					},
+				},
+			},
+			want: `<!ENTITY % name "string%peref;&#0;&entityref;">`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := Entity{
+				Name:  tt.fields.Name,
+				Type:  tt.fields.Type,
+				Value: tt.fields.Value,
+				ExtID: tt.fields.ExtID,
+				NData: tt.fields.NData,
+			}
+			if got := e.String(); got != tt.want {
+				t.Errorf("Entity.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNotation_String(t *testing.T) {
+	type fields struct {
+		Name  string
+		ExtID ExternalID
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			fields: fields{
+				Name: "nota",
+				ExtID: ExternalID{
+					Identifier: ExtSystem,
+					System:     "system",
+				},
+			},
+			want: `<!NOTATION nota SYSTEM "system">`,
+		},
+		{
+			fields: fields{
+				Name: "nota",
+				ExtID: ExternalID{
+					Identifier: ExtPublic,
+					Pubid:      "pubid",
+				},
+			},
+			want: `<!NOTATION nota PUBLIC "pubid">`,
+		},
+		{
+			fields: fields{
+				Name: "nota",
+				ExtID: ExternalID{
+					Identifier: ExtPublic,
+					Pubid:      "pubid",
+					System:     "system",
+				},
+			},
+			want: `<!NOTATION nota PUBLIC "pubid" "system">`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			n := Notation{
+				Name:  tt.fields.Name,
+				ExtID: tt.fields.ExtID,
+			}
+			if got := n.String(); got != tt.want {
+				t.Errorf("Notation.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPI_String(t *testing.T) {
+	type fields struct {
+		Target      string
+		Instruction string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			fields: fields{
+				Target:      "target",
+				Instruction: "",
+			},
+			want: `<?target?>`,
+		},
+		{
+			fields: fields{
+				Target:      "target",
+				Instruction: "inst",
+			},
+			want: `<?target inst?>`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := PI{
+				Target:      tt.fields.Target,
+				Instruction: tt.fields.Instruction,
+			}
+			if got := p.String(); got != tt.want {
+				t.Errorf("PI.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestComment_String(t *testing.T) {
 	tests := []struct {
 		name string
