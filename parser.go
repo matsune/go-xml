@@ -46,9 +46,14 @@ func (p *Parser) parseProlog() (*Prolog, error) {
 		}
 		pro.XMLDecl = xmlDecl
 	}
-	for p.isMisc() {
+
+	for {
+		cur := p.cursor
+
 		if _, err := p.parseMisc(); err != nil {
-			return nil, err
+			p.cursor = cur
+			err = nil
+			break
 		}
 	}
 
@@ -59,9 +64,13 @@ func (p *Parser) parseProlog() (*Prolog, error) {
 		}
 		pro.DOCType = doc
 
-		for p.isMisc() {
+		for {
+			cur := p.cursor
+
 			if _, err := p.parseMisc(); err != nil {
-				return nil, err
+				p.cursor = cur
+				err = nil
+				break
 			}
 		}
 	}
@@ -193,10 +202,6 @@ func (p *Parser) parseVersionNum() (string, error) {
 	}
 
 	return str, nil
-}
-
-func (p *Parser) isMisc() bool {
-	return p.Tests(`<!--`) || p.Tests(`<?`) || isSpace(p.Get())
 }
 
 // Misc ::= Comment | PI | S

@@ -21,18 +21,8 @@ func TestParser_parseProlog(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "error while parsing misc",
-			source:  `<?xml version="1.0" ?> <!--  <!DOCTYPE html >`,
-			wantErr: true,
-		},
-		{
 			name:    "error while parsing doctype",
 			source:  `<?xml version="1.0" ?>  <!DOCTYPE html `,
-			wantErr: true,
-		},
-		{
-			name:    "error while parsing misc after doctype",
-			source:  `<?xml version="1.0" ?>  <!DOCTYPE html > <!---`,
 			wantErr: true,
 		},
 		{
@@ -186,6 +176,57 @@ func TestParser_parseVersion(t *testing.T) {
 			}
 			if gotVer != tt.wantVer {
 				t.Errorf("Parser.parseVersion() = %v, want %v", gotVer, tt.wantVer)
+			}
+		})
+	}
+}
+
+func TestParser_parseMisc(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    interface{}
+		wantErr bool
+	}{
+		{
+			name:    "error while parsing comment",
+			source:  `<!--- comment`,
+			wantErr: true,
+		},
+		{
+			name:    "error while parsing PI",
+			source:  `<? PI`,
+			wantErr: true,
+		},
+		{
+			name:    "starts with unknown keyword",
+			source:  `< aa >`,
+			wantErr: true,
+		},
+		{
+			name:   "parse comment",
+			source: `<!-- comment -->`,
+			want:   Comment(" comment "),
+		},
+		{
+			name:   "parse PI",
+			source: `<?target aaa?>`,
+			want: &PI{
+				Target:      "target",
+				Instruction: "aaa",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseMisc()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseMisc() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseMisc() = %v, want %v", got, tt.want)
 			}
 		})
 	}
