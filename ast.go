@@ -2,6 +2,7 @@ package xml
 
 import (
 	"fmt"
+	"strings"
 )
 
 type (
@@ -154,6 +155,7 @@ func (a Attlist) String() string {
 	str += ">"
 	return str
 }
+
 func (e Entity) String() string {
 	str := `<!ENTITY`
 	if e.Type == EntityType_PE {
@@ -172,9 +174,11 @@ func (e Entity) String() string {
 	str += ">"
 	return str
 }
+
 func (n Notation) String() string {
 	return fmt.Sprintf(`<!NOTATION %s %s>`, n.Name, n.ExtID)
 }
+
 func (p PI) String() string {
 	str := fmt.Sprintf(`<?%s`, p.Target)
 	if len(p.Instruction) > 0 {
@@ -183,6 +187,7 @@ func (p PI) String() string {
 	str += "?>"
 	return str
 }
+
 func (c Comment) String() string {
 	return fmt.Sprintf("<!--%s-->", string(c))
 }
@@ -204,8 +209,8 @@ type (
 
 	DefaultDeclType string
 	DefaultDecl     struct {
-		Type     DefaultDeclType
-		AttValue AttValue
+		Type DefaultDeclType
+		AttValue
 	}
 
 	NotationType struct {
@@ -216,6 +221,34 @@ type (
 		Cases []string
 	}
 )
+
+func (a AttDef) String() string {
+	return fmt.Sprintf(" %s %s %s", a.Name, a.Type, a.Decl)
+}
+
+func (d DefaultDecl) String() string {
+	str := string(d.Type)
+	if len(d.AttValue) > 0 {
+		str += fmt.Sprintf(" %s", d.AttValue)
+	}
+	return str
+}
+
+func (n NotationType) String() string {
+	str := `NOTATION (`
+	for i, n := range n.Names {
+		if i > 0 {
+			str += "|"
+		}
+		str += n
+	}
+	str += ")"
+	return str
+}
+
+func (e Enum) String() string {
+	return "(" + strings.Join(e.Cases, "|") + ")"
+}
 
 const (
 	REQUIRED DefaultDeclType = "#REQUIRED"
@@ -272,6 +305,51 @@ type (
 		CPs []CP // separated ','
 	}
 )
+
+func (c Children) String() string {
+	str := fmt.Sprint(c.ChoiceSeq)
+	if c.Suffix != nil {
+		str += string(*c.Suffix)
+	}
+	return str
+}
+
+func (c CP) String() string {
+	var str string
+	if c.ChoiceSeq != nil {
+		str = fmt.Sprint(c.ChoiceSeq)
+	} else {
+		str = c.Name
+	}
+	if c.Suffix != nil {
+		str += string(*c.Suffix)
+	}
+	return str
+}
+
+func (c Choice) String() string {
+	str := "("
+	for i, cp := range c.CPs {
+		if i > 0 {
+			str += "|"
+		}
+		str += fmt.Sprint(cp)
+	}
+	str += ")"
+	return str
+}
+
+func (s Seq) String() string {
+	str := "("
+	for i, cp := range s.CPs {
+		if i > 0 {
+			str += ","
+		}
+		str += fmt.Sprint(cp)
+	}
+	str += ")"
+	return str
+}
 
 func (EMPTY) ContentSpec()    {}
 func (ANY) ContentSpec()      {}

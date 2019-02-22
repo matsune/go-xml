@@ -144,6 +144,47 @@ func TestExternalID_String(t *testing.T) {
 	}
 }
 
+func TestAttlist_String(t *testing.T) {
+	type fields struct {
+		Name string
+		Defs []*AttDef
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			fields: fields{
+				Name: "task",
+				Defs: []*AttDef{
+					&AttDef{
+						Name: "status",
+						Type: &Enum{
+							Cases: []string{"important", "normal"},
+						},
+						Decl: &DefaultDecl{
+							Type: IMPLIED,
+						},
+					},
+				},
+			},
+			want: `<!ATTLIST task status (important|normal) #IMPLIED>`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := Attlist{
+				Name: tt.fields.Name,
+				Defs: tt.fields.Defs,
+			}
+			if got := a.String(); got != tt.want {
+				t.Errorf("Attlist.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestEntity_String(t *testing.T) {
 	type fields struct {
 		Name  string
@@ -343,6 +384,391 @@ func TestComment_String(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.c.String(); got != tt.want {
 				t.Errorf("Comment.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAttDef_String(t *testing.T) {
+	type fields struct {
+		Name string
+		Type AttType
+		Decl *DefaultDecl
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := AttDef{
+				Name: tt.fields.Name,
+				Type: tt.fields.Type,
+				Decl: tt.fields.Decl,
+			}
+			if got := a.String(); got != tt.want {
+				t.Errorf("AttDef.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDefaultDecl_String(t *testing.T) {
+	type fields struct {
+		Type     DefaultDeclType
+		AttValue AttValue
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			fields: fields{
+				Type: REQUIRED,
+			},
+			want: "#REQUIRED",
+		},
+		{
+			fields: fields{
+				Type: IMPLIED,
+			},
+			want: "#IMPLIED",
+		},
+		{
+			fields: fields{
+				Type: FIXED,
+				AttValue: AttValue{
+					"a", &EntityRef{
+						Name: "entity",
+					},
+				},
+			},
+			want: `#FIXED "a&entity;"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := DefaultDecl{
+				Type:     tt.fields.Type,
+				AttValue: tt.fields.AttValue,
+			}
+			if got := d.String(); got != tt.want {
+				t.Errorf("DefaultDecl.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNotationType_String(t *testing.T) {
+	type fields struct {
+		Names []string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			fields: fields{
+				Names: []string{
+					"a", "b", "c",
+				},
+			},
+			want: `NOTATION (a|b|c)`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			n := NotationType{
+				Names: tt.fields.Names,
+			}
+			if got := n.String(); got != tt.want {
+				t.Errorf("NotationType.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEnum_String(t *testing.T) {
+	type fields struct {
+		Cases []string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			fields: fields{
+				Cases: []string{
+					"a", "b", "c",
+				},
+			},
+			want: `(a|b|c)`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := Enum{
+				Cases: tt.fields.Cases,
+			}
+			if got := e.String(); got != tt.want {
+				t.Errorf("Enum.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestChildren_String(t *testing.T) {
+	type fields struct {
+		ChoiceSeq ChoiceSeq
+		Suffix    *rune
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			fields: fields{
+				ChoiceSeq: &Seq{
+					CPs: []CP{
+						CP{
+							Name: "a",
+						},
+						CP{
+							Name: "b",
+						},
+						CP{
+							ChoiceSeq: &Choice{
+								CPs: []CP{
+									CP{
+										Name: "c",
+									},
+									CP{
+										Name: "d",
+									},
+								},
+							},
+						},
+					},
+				},
+				Suffix: newRune('?'),
+			},
+			want: `(a,b,(c|d))?`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := Children{
+				ChoiceSeq: tt.fields.ChoiceSeq,
+				Suffix:    tt.fields.Suffix,
+			}
+			if got := c.String(); got != tt.want {
+				t.Errorf("Children.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCP_String(t *testing.T) {
+	type fields struct {
+		Name      string
+		ChoiceSeq ChoiceSeq
+		Suffix    *rune
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "name",
+			fields: fields{
+				Name:   "n",
+				Suffix: newRune('?'),
+			},
+			want: `n?`,
+		},
+		{
+			name: "choice",
+			fields: fields{
+				ChoiceSeq: &Choice{
+					CPs: []CP{
+						CP{
+							Name: "a",
+						},
+						CP{
+							Name: "b",
+						},
+					},
+				},
+				Suffix: newRune('*'),
+			},
+			want: `(a|b)*`,
+		},
+		{
+			name: "seq",
+			fields: fields{
+				ChoiceSeq: &Seq{
+					CPs: []CP{
+						CP{
+							Name: "a",
+						},
+						CP{
+							Name: "b",
+						},
+					},
+				},
+				Suffix: newRune('+'),
+			},
+			want: `(a,b)+`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := CP{
+				Name:      tt.fields.Name,
+				ChoiceSeq: tt.fields.ChoiceSeq,
+				Suffix:    tt.fields.Suffix,
+			}
+			if got := c.String(); got != tt.want {
+				t.Errorf("CP.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestChoice_String(t *testing.T) {
+	type fields struct {
+		CPs []CP
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			fields: fields{
+				CPs: []CP{
+					CP{
+						Name: "a",
+					},
+					CP{
+						Name: "b",
+					},
+				},
+			},
+			want: "(a|b)",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := Choice{
+				CPs: tt.fields.CPs,
+			}
+			if got := c.String(); got != tt.want {
+				t.Errorf("Choice.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSeq_String(t *testing.T) {
+	type fields struct {
+		CPs []CP
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			fields: fields{
+				CPs: []CP{
+					CP{
+						Name: "a",
+					},
+					CP{
+						Name: "b",
+					},
+				},
+			},
+			want: "(a,b)",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := Seq{
+				CPs: tt.fields.CPs,
+			}
+			if got := s.String(); got != tt.want {
+				t.Errorf("Seq.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEntityValue_String(t *testing.T) {
+	tests := []struct {
+		name string
+		e    EntityValue
+		want string
+	}{
+		{
+			e: EntityValue{
+				"string",
+				PERef{
+					Name: "peref",
+				},
+				CharRef{
+					Prefix: "&#",
+					Value:  "0",
+				},
+				EntityRef{
+					Name: "entity",
+				},
+			},
+			want: `"string%peref;&#0;&entity;"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.e.String(); got != tt.want {
+				t.Errorf("EntityValue.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAttValue_String(t *testing.T) {
+	tests := []struct {
+		name string
+		a    AttValue
+		want string
+	}{
+		{
+			a: AttValue{
+				"string",
+				CharRef{
+					Prefix: "&#",
+					Value:  "0",
+				},
+				EntityRef{
+					Name: "entity",
+				},
+			},
+			want: `"string&#0;&entity;"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.a.String(); got != tt.want {
+				t.Errorf("AttValue.String() = %v, want %v", got, tt.want)
 			}
 		})
 	}
