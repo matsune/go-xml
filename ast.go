@@ -56,14 +56,17 @@ type (
 		Name  string
 		Type  EntityType
 		Value EntityValue
-		ExID  *ExternalID
+		ExtID *ExternalID
 		NData string
 	}
 	Notation struct {
 		Name  string
 		ExtID ExternalID
 	}
-	PI      struct{}
+	PI struct {
+		Target      string
+		Instruction string
+	}
 	Comment string
 )
 

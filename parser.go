@@ -1,6 +1,9 @@
 package xml
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type Parser struct {
 	*Scanner
@@ -467,8 +470,43 @@ func (p *Parser) parseComment() (Comment, error) {
 
 /// - Processing Instructions
 
+// PI ::= ::= '<?' PITarget (S (Char* - (Char* '?>' Char*)))? '?>'
 func (p *Parser) parsePI() (*PI, error) {
-	panic("unimplemented parsePI")
+	var err error
+	if err = p.Musts("<?"); err != nil {
+		return nil, err
+	}
+	var pi PI
+	if pi.Target, err = p.parsePITarget(); err != nil {
+		return nil, err
+	}
+
+	if isSpace(p.Get()) {
+		p.skipSpace()
+
+		for !p.Tests("?>") && !p.isEnd() && isChar(p.Get()) {
+			pi.Instruction += string(p.Get())
+			p.Step()
+		}
+	}
+
+	if err = p.Musts("?>"); err != nil {
+		return nil, err
+	}
+	return &pi, nil
+}
+
+// PITarget ::= Name - (('X' | 'x') ('M' | 'm') ('L' | 'l'))
+func (p *Parser) parsePITarget() (string, error) {
+	var n string
+	var err error
+	if n, err = p.parseName(); err != nil {
+		return "", err
+	}
+	if strings.ContainsAny(n, "xmlXML") {
+		return "", fmt.Errorf("error parsing PITarget")
+	}
+	return n, nil
 }
 
 /// - Document Type Definition
@@ -1221,10 +1259,10 @@ func (p *Parser) parseEntity() (*Entity, error) {
 
 	if e.Type == EntityType_PE {
 		// PEDef
-		e.Value, e.ExID, err = p.parsePEDef()
+		e.Value, e.ExtID, err = p.parsePEDef()
 	} else {
 		// EntityDef
-		e.Value, e.ExID, e.NData, err = p.parseEntityDef()
+		e.Value, e.ExtID, e.NData, err = p.parseEntityDef()
 	}
 	if err != nil {
 		return nil, err

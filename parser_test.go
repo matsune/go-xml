@@ -425,6 +425,113 @@ func TestParser_parseComment(t *testing.T) {
 	}
 }
 
+func TestParser_parsePI(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *PI
+		wantErr bool
+	}{
+		{
+			name:    "not starts with <?",
+			source:  "<target?>",
+			wantErr: true,
+		},
+		{
+			name:    "error parsing target",
+			source:  `<?" ?>`,
+			wantErr: true,
+		},
+		{
+			name:    "not closed",
+			source:  `<?target `,
+			wantErr: true,
+		},
+		{
+			source: `<?target key="value" ?>`,
+			want: &PI{
+				Target:      "target",
+				Instruction: `key="value" `,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parsePI()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parsePI() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parsePI() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parsePITarget(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "invalid name",
+			source:  "",
+			wantErr: true,
+		},
+		{
+			name:    "contains x",
+			source:  "wordx",
+			wantErr: true,
+		},
+		{
+			name:    "contains X",
+			source:  "worXd",
+			wantErr: true,
+		},
+		{
+			name:    "contains m",
+			source:  "womrd",
+			wantErr: true,
+		},
+		{
+			name:    "contains M",
+			source:  "wMord",
+			wantErr: true,
+		},
+		{
+			name:    "contains l",
+			source:  "lword",
+			wantErr: true,
+		},
+		{
+			name:    "contains l",
+			source:  "wordL",
+			wantErr: true,
+		},
+		{
+			name:   "not contain xmlXML",
+			source: "word",
+			want:   "word",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parsePITarget()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parsePITarget() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parsePITarget() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 func TestParser_parseMarkup(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -491,10 +598,29 @@ func TestParser_parseMarkup(t *testing.T) {
 			want: &Entity{
 				Name: "a",
 				Type: EntityType_GE,
-				ExID: &ExternalID{
+				ExtID: &ExternalID{
 					Identifier: ExtSystem,
 					System:     "http://example.com/a.gif",
 				},
+			},
+		},
+		{
+			name:   "notation",
+			source: `<!NOTATION vrml PUBLIC "VRML 1.0">`,
+			want: &Notation{
+				Name: "vrml",
+				ExtID: ExternalID{
+					Identifier: ExtPublic,
+					Pubid:      "VRML 1.0",
+				},
+			},
+		},
+		{
+			name:   "PI",
+			source: `<?target function="enable"?>`,
+			want: &PI{
+				Target:      "target",
+				Instruction: `function="enable"`,
 			},
 		},
 	}
