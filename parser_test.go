@@ -8,6 +8,68 @@ import (
 
 func newRune(r rune) *rune { return &r }
 
+func TestParser_parseProlog(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *Prolog
+		wantErr bool
+	}{
+		{
+			name:    "error while parsing XmlDecl",
+			source:  `<?xml version=?> <!DOCTYPE html >`,
+			wantErr: true,
+		},
+		{
+			name:    "error while parsing misc",
+			source:  `<?xml version="1.0" ?> <!--  <!DOCTYPE html >`,
+			wantErr: true,
+		},
+		{
+			name:    "error while parsing doctype",
+			source:  `<?xml version="1.0" ?>  <!DOCTYPE html `,
+			wantErr: true,
+		},
+		{
+			name:    "error while parsing misc after doctype",
+			source:  `<?xml version="1.0" ?>  <!DOCTYPE html > <!---`,
+			wantErr: true,
+		},
+		{
+			name: "xml decl and dtd decl",
+			source: `<?xml version="1.0"?>
+			<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+			 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">`,
+			want: &Prolog{
+				XMLDecl: &XMLDecl{
+					Version: "1.0",
+				},
+				DOCType: &DOCType{
+					Name: "html",
+					ExtID: &ExternalID{
+						Identifier: ExtPublic,
+						Pubid:      "-//W3C//DTD XHTML 1.0 Transitional//EN",
+						System:     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd",
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseProlog()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseProlog() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseProlog() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parseXmlDecl(t *testing.T) {
 	tests := []struct {
 		name    string
