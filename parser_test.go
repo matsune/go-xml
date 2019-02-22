@@ -636,6 +636,62 @@ func TestParser_parsePITarget(t *testing.T) {
 	}
 }
 
+func TestParser_parseCDSect(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    CData
+		wantErr bool
+	}{
+		{
+			name:    "not starts with <![CDATA[",
+			source:  `<[CDATA[ ]]>`,
+			wantErr: true,
+		},
+		{
+			name:    "not closed",
+			source:  `<![CDATA[ aaa ]`,
+			wantErr: true,
+		},
+		{
+			name: "parse string until ]]>",
+			source: `<![CDATA[
+				any characters (including markup)
+
+				<!DOCTYPE lab_group [
+					<!ELEMENT lab_group (student_name)*>
+					<!ELEMENT student_name (#PCDATA)>
+					<!ATTLIST student_name student_no ID #REQUIRED>
+					<!ATTLIST student_name tutor_1 IDREF #IMPLIED>
+					<!ATTLIST student_name tutor_2 IDREF #IMPLIED>
+				]> ]]>`,
+			want: `
+				any characters (including markup)
+
+				<!DOCTYPE lab_group [
+					<!ELEMENT lab_group (student_name)*>
+					<!ELEMENT student_name (#PCDATA)>
+					<!ATTLIST student_name student_no ID #REQUIRED>
+					<!ATTLIST student_name tutor_1 IDREF #IMPLIED>
+					<!ATTLIST student_name tutor_2 IDREF #IMPLIED>
+				]> `,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseCDSect()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseCDSect() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parseCDSect() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParser_parseDoctype(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -696,7 +752,7 @@ func TestParser_parseDoctype(t *testing.T) {
 			want: &DOCType{
 				Name: "author",
 				Markups: []Markup{
-					&Element{
+					&ElementDecl{
 						Name:        "author",
 						ContentSpec: &Mixed{},
 					},
@@ -723,7 +779,7 @@ func TestParser_parseDoctype(t *testing.T) {
 					System:     "system",
 				},
 				Markups: []Markup{
-					&Element{
+					&ElementDecl{
 						Name:        "author",
 						ContentSpec: &Mixed{},
 					},
@@ -768,7 +824,7 @@ func TestParser_parseMarkup(t *testing.T) {
 		{
 			name:   "element",
 			source: "<!ELEMENT student (id|(a,b)?)>",
-			want: &Element{
+			want: &ElementDecl{
 				Name: "student",
 				ContentSpec: &Children{
 					ChoiceSeq: &Choice{
@@ -934,6 +990,262 @@ func TestParser_parseElement(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			name:    "not starts with <",
+			source:  `name >`,
+			wantErr: true,
+		},
+		{
+			name:    "error parsing name",
+			source:  `<0name >`,
+			wantErr: true,
+		},
+		{
+			name:    "no end tag",
+			source:  `<name>`,
+			wantErr: true,
+		},
+		{
+			name:    "doesn't match end tag and start tag",
+			source:  `<name></a>`,
+			wantErr: true,
+		},
+		{
+			name:    "error while parsing attribute",
+			source:  `<name attr=></name>`,
+			wantErr: true,
+		},
+		{
+			name:   "name empty content",
+			source: `<name />`,
+			want: &Element{
+				Name:       "name",
+				IsEmptyTag: true,
+			},
+		},
+		{
+			name:   "name with attribute empty content",
+			source: `<name attribute_name="attribute_value" />`,
+			want: &Element{
+				Name: "name",
+				Attrs: Attributes{
+					&Attribute{
+						Name: "attribute_name",
+						AttValue: AttValue{
+							"attribute_value",
+						},
+					},
+				},
+				IsEmptyTag: true,
+			},
+		},
+		{
+			name:   "name content",
+			source: `<name><!--comment-->aaa</name>`,
+			want: &Element{
+				Name: "name",
+				Contents: []interface{}{
+					Comment("comment"),
+					"aaa",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseElement()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseElement() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseElement() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseAttribute(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *Attribute
+		wantErr bool
+	}{
+		{
+			name:    "error parsing name",
+			source:  `-active="true"`,
+			wantErr: true,
+		},
+		{
+			name:    "error parsing Eq",
+			source:  `active:"true"`,
+			wantErr: true,
+		},
+		{
+			name:    "error parsing AttValue",
+			source:  `active=true`,
+			wantErr: true,
+		},
+		{
+			source: `active="true"`,
+			want: &Attribute{
+				Name: "active",
+				AttValue: AttValue{
+					"true",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseAttribute()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseAttribute() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseAttribute() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseETag(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "not starts with </",
+			source:  "<endtag >",
+			wantErr: true,
+		},
+		{
+			name:    "error parsing name",
+			source:  "</0endtag >",
+			wantErr: true,
+		},
+		{
+			name:    "not closed",
+			source:  "</endtag ",
+			wantErr: true,
+		},
+		{
+			source: "</endtag>",
+			want:   "endtag",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			got, err := p.parseETag()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Parser.parseETag() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Parser.parseETag() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseContents(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		want   []interface{}
+	}{
+		{
+			name:   "empty should return nil",
+			source: "",
+			want:   nil,
+		},
+		{
+			name:   "end content",
+			source: "</",
+			want:   nil,
+		},
+		{
+			name:   "only &",
+			source: "&",
+			want:   nil,
+		},
+		{
+			name:   "not comment",
+			source: "<!--this seems comment, but not closed",
+			want:   nil,
+		},
+		{
+			name:   "not pi",
+			source: "<?notPI",
+			want:   nil,
+		},
+		{
+			name:   "not element",
+			source: "<notElement",
+			want:   nil,
+		},
+		{
+			name:   "element after charData",
+			source: "char<Element/>",
+			want: []interface{}{
+				"char",
+				&Element{
+					Name:       "Element",
+					IsEmptyTag: true,
+				},
+			},
+		},
+		{
+			name:   "only charData",
+			source: "char",
+			want: []interface{}{
+				"char",
+			},
+		},
+		{
+			name:   "all",
+			source: `<a/>chardata&entityref;<![CDATA[cdata]]><?pitarget?><!--comment-->`,
+			want: []interface{}{
+				&Element{
+					Name:       "a",
+					IsEmptyTag: true,
+				},
+				"chardata",
+				&EntityRef{
+					Name: "entityref",
+				},
+				CData("cdata"),
+				&PI{
+					Target: "pitarget",
+				},
+				Comment("comment"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(tt.source)
+			if got := p.parseContents(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Parser.parseContents() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParser_parseElementDecl(t *testing.T) {
+	tests := []struct {
+		name    string
+		source  string
+		want    *ElementDecl
+		wantErr bool
+	}{
+		{
 			name:    "invalid head",
 			source:  `<ELEMENT student (id)>`,
 			wantErr: true,
@@ -966,7 +1278,7 @@ func TestParser_parseElement(t *testing.T) {
 		{
 			name:   "simple element",
 			source: `<!ELEMENT student (id)>`,
-			want: &Element{
+			want: &ElementDecl{
 				Name: "student",
 				ContentSpec: &Children{
 					ChoiceSeq: &Choice{
@@ -983,7 +1295,7 @@ func TestParser_parseElement(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := NewParser(tt.source)
-			got, err := p.parseElement()
+			got, err := p.parseElementDecl()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseElement() error = %v, wantErr %v", err, tt.wantErr)
 				return

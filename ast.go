@@ -43,7 +43,7 @@ type (
 		Markup()
 	}
 
-	Element struct {
+	ElementDecl struct {
 		Name string
 		ContentSpec
 	}
@@ -75,12 +75,12 @@ const (
 	EntityType_PE
 )
 
-func (Element) Markup()  {}
-func (Attlist) Markup()  {}
-func (Entity) Markup()   {}
-func (Notation) Markup() {}
-func (PI) Markup()       {}
-func (Comment) Markup()  {}
+func (ElementDecl) Markup() {}
+func (Attlist) Markup()     {}
+func (Entity) Markup()      {}
+func (Notation) Markup()    {}
+func (PI) Markup()          {}
+func (Comment) Markup()     {}
 
 // Attribute Types
 type (
@@ -210,4 +210,30 @@ func (e EntityRef) String() string {
 }
 func (e PERef) String() string {
 	return "%" + fmt.Sprintf(`%s;`, e.Name)
+}
+
+// Element
+type (
+	// <name />
+	Element struct {
+		Name       string
+		Attrs      Attributes
+		Contents   []interface{}
+		IsEmptyTag bool
+	}
+
+	Attribute struct {
+		Name string
+		AttValue
+	}
+
+	Attributes []*Attribute
+)
+
+type (
+	CData string
+)
+
+func (c CData) String() string {
+	return fmt.Sprintf("<![CDATA[%s]]>", string(c))
 }

@@ -27,7 +27,12 @@ func (p *Parser) Parse() error {
 		return err
 	}
 	fmt.Println(">>>", pro)
-	// TODO: parse element
+
+	elem, err := p.parseElement()
+	if err != nil {
+		return err
+	}
+	fmt.Println(">>>", elem)
 	return nil
 }
 
@@ -358,29 +363,17 @@ func (p *Parser) parseAttValue() (AttValue, error) {
 			break
 		}
 
-		cur := p.cursor
-
 		if p.Test('&') {
 			if len(str) > 0 {
 				res = append(res, str)
 				str = ""
 			}
 
-			// try EntityRef
-			var eRef *EntityRef
-			eRef, err = p.parseEntityRef()
-			if err != nil {
-				p.cursor = cur
-				// try CharRef
-				var cRef *CharRef
-				cRef, err = p.parseCharRef()
-				if err != nil {
-					return nil, p.errorf("error AttValue")
-				}
-				res = append(res, cRef)
-			} else {
-				res = append(res, eRef)
+			var ref Ref
+			if ref, err = p.parseReference(); err != nil {
+				return nil, err
 			}
+			res = append(res, ref)
 		} else {
 			str += string(p.Get())
 			p.Step()
@@ -514,6 +507,26 @@ func (p *Parser) parsePITarget() (string, error) {
 	return n, nil
 }
 
+/// - CDATA Sections
+
+// CDSect ::= CDStart CData CDEnd
+func (p *Parser) parseCDSect() (CData, error) {
+	var err error
+	if err = p.Musts("<![CDATA["); err != nil {
+		return "", err
+	}
+	var str string
+	for !p.Tests("]]>") {
+		if p.isEnd() {
+			return "", fmt.Errorf("error parsing CDSect")
+		}
+		str += string(p.Get())
+		p.Step()
+	}
+	p.StepN(len("]]>"))
+	return CData(str), nil
+}
+
 /// - Document Type Definition
 
 // doctypedecl ::= '<!DOCTYPE' S Name (S ExternalID)? S? ('[' (markupdecl | PEReference | S)* ']' S?)? '>'
@@ -584,13 +597,13 @@ func (p *Parser) parseDoctype() (*DOCType, error) {
 	return &d, nil
 }
 
-// markupdecl ::= elementdecl |  AttlistDecl |  EntityDecl |  NotationDecl | PI |  Comment
+// markupdecl ::= elementdecl | AttlistDecl | EntityDecl | NotationDecl | PI | Comment
 func (p *Parser) parseMarkup() (Markup, error) {
 	var err error
 	var m Markup
 	switch {
 	case p.Tests("<!ELEMENT"):
-		m, err = p.parseElement()
+		m, err = p.parseElementDecl()
 	case p.Tests("<!ATTLIST"):
 		m, err = p.parseAttlist()
 	case p.Tests("<!ENTITY"):
@@ -640,10 +653,181 @@ func (p *Parser) parseStandalone() (bool, error) {
 	return std, nil
 }
 
+/// - Element
+
+// element ::= EmptyElemTag | STag content ETag
+// EmptyElemTag ::= '<' Name (S Attribute)* S? '/>'
+// STag ::= '<' Name (S Attribute)* S? '>'
+func (p *Parser) parseElement() (*Element, error) {
+	var err error
+	if err = p.Must('<'); err != nil {
+		return nil, err
+	}
+	var e Element
+
+	if e.Name, err = p.parseName(); err != nil {
+		return nil, err
+	}
+
+	for isSpace(p.Get()) {
+		p.skipSpace()
+		if p.Test('>') || p.Tests("/>") || p.isEnd() {
+			break
+		}
+
+		var attr *Attribute
+		if attr, err = p.parseAttribute(); err != nil {
+			return nil, err
+		}
+		e.Attrs = append(e.Attrs, attr)
+	}
+
+	if p.Test('>') {
+		p.Step()
+
+		e.Contents = p.parseContents()
+
+		var endName string
+		if endName, err = p.parseETag(); err != nil {
+			return nil, err
+		}
+
+		if endName != e.Name {
+			return nil, p.errorf("EndTag name %q does not match with StartTag name %q", endName, e.Name)
+		}
+
+	} else if p.Tests("/>") {
+		p.StepN(len("/>"))
+		e.IsEmptyTag = true
+	} else {
+		return nil, p.errorf("error parsing element")
+	}
+	return &e, nil
+}
+
+// Attribute ::= Name Eq AttValue
+func (p *Parser) parseAttribute() (*Attribute, error) {
+	var attr Attribute
+	var err error
+	if attr.Name, err = p.parseName(); err != nil {
+		return nil, err
+	}
+	if err = p.parseEq(); err != nil {
+		return nil, err
+	}
+	if attr.AttValue, err = p.parseAttValue(); err != nil {
+		return nil, err
+	}
+	return &attr, nil
+}
+
+/// - End-tag
+
+// ETag ::= '</' Name S? '>'
+func (p *Parser) parseETag() (string, error) {
+	var n string
+	var err error
+	if err = p.Musts("</"); err != nil {
+		return "", err
+	}
+	if n, err = p.parseName(); err != nil {
+		return "", err
+	}
+	p.skipSpace()
+	if err = p.Must('>'); err != nil {
+		return "", err
+	}
+	return n, nil
+}
+
+/// - Content of Elements
+
+// content ::= (element | CharData | Reference | CDSect | PI | Comment)*
+func (p *Parser) parseContents() []interface{} {
+	// '<'Name 					-> Element
+	// '&'Name or '&#'			-> Ref
+	// '<![CDATA['				-> CDSect
+	// '<?'						-> PI
+	// '<!--'					-> Comment
+	// Not starts with '&' or '<'
+	// and not contains ']]>'	-> CharData
+	// Others 					-> return
+
+	var res []interface{}
+	var err error
+
+	var charData string
+	var i interface{}
+
+	for {
+		cur := p.cursor
+
+		if p.Test('&') {
+			// Ref or break
+			i, err = p.parseReference()
+			if err != nil {
+				p.cursor = cur
+				break
+			}
+			if len(charData) > 0 {
+				res = append(res, charData)
+				charData = ""
+			}
+			res = append(res, i)
+		} else if p.Test('<') {
+			if p.Tests("<!") {
+				// CDSect or Comment or break
+
+				i, err = p.parseCDSect()
+				if err != nil {
+					p.cursor = cur
+
+					i, err = p.parseComment()
+					if err != nil {
+						p.cursor = cur
+						break
+					}
+				}
+			} else if p.Tests("<?") {
+				// PI or break
+				i, err = p.parsePI()
+				if err != nil {
+					p.cursor = cur
+					break
+				}
+			} else {
+				// Element or break
+				i, err = p.parseElement()
+				if err != nil {
+					p.cursor = cur
+					break
+				}
+			}
+			if len(charData) > 0 {
+				res = append(res, charData)
+				charData = ""
+			}
+			res = append(res, i)
+		} else {
+			if p.isEnd() || p.Tests("]]>") {
+				break
+			}
+
+			// CharData
+			charData += string(p.Get())
+			p.Step()
+		}
+	}
+	if len(charData) > 0 {
+		res = append(res, charData)
+	}
+	return res
+}
+
 /// - Element Type Declaration
 
 // elementdecl ::= '<!ELEMENT' S Name S contentspec S? '>'
-func (p *Parser) parseElement() (*Element, error) {
+func (p *Parser) parseElementDecl() (*ElementDecl, error) {
 	var err error
 	if err = p.Musts("<!ELEMENT"); err != nil {
 		return nil, err
@@ -666,7 +850,7 @@ func (p *Parser) parseElement() (*Element, error) {
 	if err = p.Must('>'); err != nil {
 		return nil, err
 	}
-	return &Element{
+	return &ElementDecl{
 		Name:        n,
 		ContentSpec: c,
 	}, nil
@@ -1186,6 +1370,30 @@ func (p *Parser) parseCharRef() (*CharRef, error) {
 }
 
 /// - Entity Reference
+
+// Reference ::= EntityRef | CharRef
+func (p *Parser) parseReference() (Ref, error) {
+	var err error
+	cur := p.cursor
+
+	// try EntityRef
+	var eRef *EntityRef
+	eRef, err = p.parseEntityRef()
+	if err != nil {
+		// reset
+		p.cursor = cur
+		err = nil
+
+		// try CharRef
+		var cRef *CharRef
+		cRef, err = p.parseCharRef()
+		if err != nil {
+			return nil, p.errorf("error AttValue")
+		}
+		return cRef, nil
+	}
+	return eRef, nil
+}
 
 // EntityRef ::= '&' Name ';'
 func (p *Parser) parseEntityRef() (*EntityRef, error) {
