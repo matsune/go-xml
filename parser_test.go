@@ -623,6 +623,11 @@ func TestParser_parseMarkup(t *testing.T) {
 				Instruction: `function="enable"`,
 			},
 		},
+		{
+			name:   "Comment",
+			source: `<!-- this is comment -->`,
+			want:   Comment(" this is comment "),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1159,6 +1164,21 @@ func TestParser_parseAttlist(t *testing.T) {
 			name: "error parsing name",
 			source: `<!ATTLIST 
 			 >`,
+			wantErr: true,
+		},
+		{
+			name:    "not closed",
+			source:  `<!ATTLIST name `,
+			wantErr: true,
+		},
+		{
+			name:    "not closed with AttDef",
+			source:  `<!ATTLIST name height CDATA #REQUIRED `,
+			wantErr: true,
+		},
+		{
+			name:    "error parsing AttDef",
+			source:  `<!ATTLIST name ' >`,
 			wantErr: true,
 		},
 		{

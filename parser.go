@@ -907,7 +907,7 @@ func (p *Parser) parseAttlist() (*Attlist, error) {
 
 		p.skipSpace()
 		if p.Test('>') {
-			p.cursor = cur
+			p.Step()
 			break
 		}
 		if p.isEnd() {
@@ -920,11 +920,6 @@ func (p *Parser) parseAttlist() (*Attlist, error) {
 			return nil, err
 		}
 		att.Defs = append(att.Defs, def)
-	}
-
-	p.skipSpace()
-	if err = p.Must('>'); err != nil {
-		return nil, err
 	}
 
 	return &att, nil
