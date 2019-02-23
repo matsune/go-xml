@@ -78,10 +78,43 @@ func TestDOCType_String(t *testing.T) {
 			DOCType: DOCType{
 				Name: "html",
 				Markups: []Markup{
+					&ElementDecl{
+						Name:        "element",
+						ContentSpec: &EMPTY{},
+					},
 					Comment("comment"),
+					&Attlist{
+						Name: "attlist",
+						Defs: []*AttDef{
+							&AttDef{
+								Name: "attdef",
+								Type: Att_IDREF,
+								Decl: &DefaultDecl{
+									Type: REQUIRED,
+								},
+							},
+						},
+					},
+					&Entity{
+						Name: "entity",
+						Type: EntityType_GE,
+						Value: EntityValue{
+							"a",
+						},
+					},
+					&Notation{
+						Name: "notation",
+						ExtID: ExternalID{
+							Identifier: ExtSystem,
+							System:     "system",
+						},
+					},
+				},
+				PERef: &PERef{
+					Name: "peref",
 				},
 			},
-			want: `<!DOCTYPE html [<!--comment-->]>`,
+			want: `<!DOCTYPE html [<!ELEMENT element EMPTY> <!--comment--> <!ATTLIST attlist attdef IDREF #REQUIRED> <!ENTITY entity "a"> <!NOTATION notation SYSTEM "system"> %peref;]>`,
 		},
 	}
 	for _, tt := range tests {
@@ -139,6 +172,73 @@ func TestExternalID_String(t *testing.T) {
 			}
 			if got := e.String(); got != tt.want {
 				t.Errorf("ExternalID.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestElementDecl_String(t *testing.T) {
+	type fields struct {
+		Name        string
+		ContentSpec ContentSpec
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "contentSpce is EMPTY",
+			fields: fields{
+				Name:        "name",
+				ContentSpec: &EMPTY{},
+			},
+			want: `<!ELEMENT name EMPTY>`,
+		},
+		{
+			name: "contentSpce is ANY",
+			fields: fields{
+				Name:        "name",
+				ContentSpec: &ANY{},
+			},
+			want: `<!ELEMENT name ANY>`,
+		},
+		{
+			name: "contentSpce is Mixed",
+			fields: fields{
+				Name: "name",
+				ContentSpec: &Mixed{
+					Names: []string{"a", "b"},
+				},
+			},
+			want: `<!ELEMENT name (#PCDATA|a|b)>`,
+		},
+		{
+			name: "contentSpce is Children",
+			fields: fields{
+				Name: "name",
+				ContentSpec: &Children{
+					ChoiceSeq: &Seq{
+						CPs: []CP{
+							CP{
+								Name: "a",
+							},
+						},
+					},
+					Suffix: newRune('*'),
+				},
+			},
+			want: `<!ELEMENT name (a)*>`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := ElementDecl{
+				Name:        tt.fields.Name,
+				ContentSpec: tt.fields.ContentSpec,
+			}
+			if got := e.String(); got != tt.want {
+				t.Errorf("ElementDecl.String() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -518,6 +618,58 @@ func TestEnum_String(t *testing.T) {
 			}
 			if got := e.String(); got != tt.want {
 				t.Errorf("Enum.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEMPTY_String(t *testing.T) {
+	t.Run("EMPTY String()", func(t *testing.T) {
+		want := "EMPTY"
+		e := EMPTY{}
+		if got := e.String(); got != want {
+			t.Errorf("EMPTY.String() = %v, want %v", got, want)
+		}
+	})
+}
+
+func TestANY_String(t *testing.T) {
+	t.Run("ANY String()", func(t *testing.T) {
+		want := "ANY"
+		e := ANY{}
+		if got := e.String(); got != want {
+			t.Errorf("EMPTY.String() = %v, want %v", got, want)
+		}
+	})
+}
+
+func TestMixed_String(t *testing.T) {
+	type fields struct {
+		Names []string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "empty names",
+			want: `(#PCDATA)`,
+		},
+		{
+			fields: fields{
+				Names: []string{"a", "b"},
+			},
+			want: `(#PCDATA|a|b)`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := Mixed{
+				Names: tt.fields.Names,
+			}
+			if got := m.String(); got != tt.want {
+				t.Errorf("Mixed.String() = %v, want %v", got, tt.want)
 			}
 		})
 	}

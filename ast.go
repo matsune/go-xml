@@ -61,24 +61,25 @@ func (x XMLDecl) String() string {
 }
 
 func (d DOCType) String() string {
-	str := "<!DOCTYPE"
-
-	str += fmt.Sprintf(` %s`, d.Name)
+	str := fmt.Sprintf(`<!DOCTYPE %s`, d.Name)
 
 	if d.ExtID != nil {
-		str += fmt.Sprintf(" %v", d.ExtID)
+		str += fmt.Sprintf(" %s", d.ExtID)
 	}
 
-	if len(d.Markups) > 0 {
+	if len(d.Markups) > 0 || d.PERef != nil {
 		str += " ["
 	}
 	for i, m := range d.Markups {
 		if i > 0 {
 			str += " "
 		}
-		str += fmt.Sprintf("%v", m)
+		str += fmt.Sprintf(`%s`, m)
 	}
-	if len(d.Markups) > 0 {
+	if d.PERef != nil {
+		str += fmt.Sprintf(` %s`, d.PERef)
+	}
+	if len(d.Markups) > 0 || d.PERef != nil {
 		str += "]"
 	}
 
@@ -146,6 +147,10 @@ func (Entity) Markup()      {}
 func (Notation) Markup()    {}
 func (PI) Markup()          {}
 func (Comment) Markup()     {}
+
+func (e ElementDecl) String() string {
+	return fmt.Sprintf(`<!ELEMENT %s %s>`, e.Name, e.ContentSpec)
+}
 
 func (a Attlist) String() string {
 	str := fmt.Sprintf(`<!ATTLIST %s`, a.Name)
@@ -305,6 +310,23 @@ type (
 		CPs []CP // separated ','
 	}
 )
+
+func (EMPTY) String() string {
+	return "EMPTY"
+}
+
+func (ANY) String() string {
+	return "ANY"
+}
+
+func (m Mixed) String() string {
+	str := `(#PCDATA`
+	for _, n := range m.Names {
+		str += "|" + n
+	}
+	str += ")"
+	return str
+}
 
 func (c Children) String() string {
 	str := fmt.Sprint(c.ChoiceSeq)
