@@ -457,6 +457,38 @@ type (
 	CData string
 )
 
+func (e Element) String() string {
+	str := fmt.Sprintf(`<%s`, e.Name)
+	for _, attr := range e.Attrs {
+		str += fmt.Sprintf(` %s`, attr)
+	}
+
+	if e.IsEmptyTag {
+		str += "/>"
+		return str
+	}
+
+	str += ">"
+	for _, v := range e.Contents {
+		str += fmt.Sprint(v)
+	}
+
+	str += fmt.Sprintf(`</%s>`, e.Name)
+	return str
+}
+
+func (a Attribute) String() string {
+	return fmt.Sprintf("%s=%s", a.Name, a.AttValue)
+}
+
+func (a Attributes) String() string {
+	attrs := make([]string, len(a))
+	for i, v := range a {
+		attrs[i] = v.String()
+	}
+	return strings.Join(attrs, " ")
+}
+
 func (c CData) String() string {
 	return fmt.Sprintf("<![CDATA[%s]]>", string(c))
 }

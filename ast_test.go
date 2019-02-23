@@ -1013,6 +1013,154 @@ func TestPERef_String(t *testing.T) {
 	}
 }
 
+func TestElement_String(t *testing.T) {
+	type fields struct {
+		Name       string
+		Attrs      Attributes
+		Contents   []interface{}
+		IsEmptyTag bool
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "empty tag",
+			fields: fields{
+				Name:       "document",
+				IsEmptyTag: true,
+			},
+			want: `<document/>`,
+		},
+		{
+			name: "has contents",
+			fields: fields{
+				Name: "document",
+				Attrs: Attributes{
+					&Attribute{
+						Name: "date",
+						AttValue: AttValue{
+							"2019/02/23",
+						},
+					},
+					&Attribute{
+						Name: "attr",
+						AttValue: AttValue{
+							&CharRef{
+								Prefix: "&#x",
+								Value:  "0a",
+							},
+						},
+					},
+				},
+				Contents: []interface{}{
+					"contents",
+					Comment(" comment "),
+				},
+				IsEmptyTag: false,
+			},
+			want: `<document date="2019/02/23" attr="&#x0a;">contents<!-- comment --></document>`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := Element{
+				Name:       tt.fields.Name,
+				Attrs:      tt.fields.Attrs,
+				Contents:   tt.fields.Contents,
+				IsEmptyTag: tt.fields.IsEmptyTag,
+			}
+			if got := e.String(); got != tt.want {
+				t.Errorf("Element.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAttribute_String(t *testing.T) {
+	type fields struct {
+		Name     string
+		AttValue AttValue
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			fields: fields{
+				Name: "attr",
+				AttValue: AttValue{
+					"string",
+					&CharRef{
+						Prefix: "&#",
+						Value:  "0",
+					},
+					&EntityRef{
+						Name: "entity",
+					},
+				},
+			},
+			want: `attr="string&#0;&entity;"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := Attribute{
+				Name:     tt.fields.Name,
+				AttValue: tt.fields.AttValue,
+			}
+			if got := a.String(); got != tt.want {
+				t.Errorf("Attribute.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAttributes_String(t *testing.T) {
+	tests := []struct {
+		name string
+		a    Attributes
+		want string
+	}{
+		{
+			a: Attributes{
+				&Attribute{
+					Name: "a",
+					AttValue: AttValue{
+						"str1",
+					},
+				},
+				&Attribute{
+					Name: "b",
+					AttValue: AttValue{
+						"str2",
+					},
+				},
+				&Attribute{
+					Name: "c",
+					AttValue: AttValue{
+						"str3",
+						&CharRef{
+							Prefix: "&#",
+							Value:  "0",
+						},
+					},
+				},
+			},
+			want: `a="str1" b="str2" c="str3&#0;"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.a.String(); got != tt.want {
+				t.Errorf("Attributes.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCData_String(t *testing.T) {
 	tests := []struct {
 		name string
