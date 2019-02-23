@@ -66,9 +66,9 @@ func TestDOCType_String(t *testing.T) {
 			DOCType: DOCType{
 				Name: "html",
 				ExtID: &ExternalID{
-					Identifier: ExtPublic,
-					Pubid:      "pubid",
-					System:     "system",
+					Type:   EXT_PUBLIC,
+					Pubid:  "pubid",
+					System: "system",
 				},
 			},
 			want: `<!DOCTYPE html PUBLIC "pubid" "system">`,
@@ -88,16 +88,16 @@ func TestDOCType_String(t *testing.T) {
 						Defs: []*AttDef{
 							&AttDef{
 								Name: "attdef",
-								Type: Att_IDREF,
+								Type: ATT_IDREF,
 								Decl: &DefaultDecl{
-									Type: REQUIRED,
+									Type: DECL_REQUIRED,
 								},
 							},
 						},
 					},
 					&Entity{
 						Name: "entity",
-						Type: EntityType_GE,
+						Type: ENTITY_GE,
 						Value: EntityValue{
 							"a",
 						},
@@ -105,8 +105,8 @@ func TestDOCType_String(t *testing.T) {
 					&Notation{
 						Name: "notation",
 						ExtID: ExternalID{
-							Identifier: ExtSystem,
-							System:     "system",
+							Type:   EXT_SYSTEM,
+							System: "system",
 						},
 					},
 				},
@@ -128,9 +128,9 @@ func TestDOCType_String(t *testing.T) {
 
 func TestExternalID_String(t *testing.T) {
 	type fields struct {
-		Identifier ExtIdent
-		Pubid      string
-		System     string
+		Type   ExternalType
+		Pubid  string
+		System string
 	}
 	tests := []struct {
 		name   string
@@ -140,25 +140,25 @@ func TestExternalID_String(t *testing.T) {
 		{
 			name: "system",
 			fields: fields{
-				Identifier: ExtSystem,
-				System:     "system",
+				Type:   EXT_SYSTEM,
+				System: "system",
 			},
 			want: `SYSTEM "system"`,
 		},
 		{
 			name: "pubid",
 			fields: fields{
-				Identifier: ExtPublic,
-				Pubid:      "pubid",
+				Type:  EXT_PUBLIC,
+				Pubid: "pubid",
 			},
 			want: `PUBLIC "pubid"`,
 		},
 		{
 			name: "pubid and system",
 			fields: fields{
-				Identifier: ExtPublic,
-				Pubid:      "pubid",
-				System:     "system",
+				Type:   EXT_PUBLIC,
+				Pubid:  "pubid",
+				System: "system",
 			},
 			want: `PUBLIC "pubid" "system"`,
 		},
@@ -166,9 +166,9 @@ func TestExternalID_String(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := ExternalID{
-				Identifier: tt.fields.Identifier,
-				Pubid:      tt.fields.Pubid,
-				System:     tt.fields.System,
+				Type:   tt.fields.Type,
+				Pubid:  tt.fields.Pubid,
+				System: tt.fields.System,
 			}
 			if got := e.String(); got != tt.want {
 				t.Errorf("ExternalID.String() = %v, want %v", got, tt.want)
@@ -264,7 +264,7 @@ func TestAttlist_String(t *testing.T) {
 							Cases: []string{"important", "normal"},
 						},
 						Decl: &DefaultDecl{
-							Type: IMPLIED,
+							Type: DECL_IMPLIED,
 						},
 					},
 				},
@@ -302,7 +302,7 @@ func TestEntity_String(t *testing.T) {
 			name: "GEDecl, EntityValue",
 			fields: fields{
 				Name: "name",
-				Type: EntityType_GE,
+				Type: ENTITY_GE,
 				Value: EntityValue{
 					"value",
 					PERef{
@@ -316,11 +316,11 @@ func TestEntity_String(t *testing.T) {
 			name: "GEDecl, ExternalID, NData",
 			fields: fields{
 				Name: "name",
-				Type: EntityType_GE,
+				Type: ENTITY_GE,
 				ExtID: &ExternalID{
-					Identifier: ExtPublic,
-					Pubid:      "pubid",
-					System:     "system",
+					Type:   EXT_PUBLIC,
+					Pubid:  "pubid",
+					System: "system",
 				},
 				NData: "ndata",
 			},
@@ -330,10 +330,10 @@ func TestEntity_String(t *testing.T) {
 			name: "PEDecl, ExternalID",
 			fields: fields{
 				Name: "name",
-				Type: EntityType_PE,
+				Type: ENTITY_PE,
 				ExtID: &ExternalID{
-					Identifier: ExtSystem,
-					System:     "system",
+					Type:   EXT_SYSTEM,
+					System: "system",
 				},
 			},
 			want: `<!ENTITY % name SYSTEM "system">`,
@@ -342,7 +342,7 @@ func TestEntity_String(t *testing.T) {
 			name: "PEDecl, EntityValue",
 			fields: fields{
 				Name: "name",
-				Type: EntityType_PE,
+				Type: ENTITY_PE,
 				Value: EntityValue{
 					"string",
 					PERef{
@@ -390,8 +390,8 @@ func TestNotation_String(t *testing.T) {
 			fields: fields{
 				Name: "nota",
 				ExtID: ExternalID{
-					Identifier: ExtSystem,
-					System:     "system",
+					Type:   EXT_SYSTEM,
+					System: "system",
 				},
 			},
 			want: `<!NOTATION nota SYSTEM "system">`,
@@ -400,8 +400,8 @@ func TestNotation_String(t *testing.T) {
 			fields: fields{
 				Name: "nota",
 				ExtID: ExternalID{
-					Identifier: ExtPublic,
-					Pubid:      "pubid",
+					Type:  EXT_PUBLIC,
+					Pubid: "pubid",
 				},
 			},
 			want: `<!NOTATION nota PUBLIC "pubid">`,
@@ -410,9 +410,9 @@ func TestNotation_String(t *testing.T) {
 			fields: fields{
 				Name: "nota",
 				ExtID: ExternalID{
-					Identifier: ExtPublic,
-					Pubid:      "pubid",
-					System:     "system",
+					Type:   EXT_PUBLIC,
+					Pubid:  "pubid",
+					System: "system",
 				},
 			},
 			want: `<!NOTATION nota PUBLIC "pubid" "system">`,
@@ -528,19 +528,19 @@ func TestDefaultDecl_String(t *testing.T) {
 	}{
 		{
 			fields: fields{
-				Type: REQUIRED,
+				Type: DECL_REQUIRED,
 			},
 			want: "#REQUIRED",
 		},
 		{
 			fields: fields{
-				Type: IMPLIED,
+				Type: DECL_IMPLIED,
 			},
 			want: "#IMPLIED",
 		},
 		{
 			fields: fields{
-				Type: FIXED,
+				Type: DECL_FIXED,
 				AttValue: AttValue{
 					"a", &EntityRef{
 						Name: "entity",
@@ -618,6 +618,92 @@ func TestEnum_String(t *testing.T) {
 			}
 			if got := e.String(); got != tt.want {
 				t.Errorf("Enum.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDefaultDeclType_String(t *testing.T) {
+	tests := []struct {
+		name string
+		d    DefaultDeclType
+		want string
+	}{
+		{
+			d:    DECL_REQUIRED,
+			want: "#REQUIRED",
+		},
+		{
+			d:    DECL_IMPLIED,
+			want: "#IMPLIED",
+		},
+		{
+			d:    DECL_FIXED,
+			want: "#FIXED",
+		},
+		{
+			name: "unknown",
+			d:    0,
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.d.String(); got != tt.want {
+				t.Errorf("DefaultDeclType.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAttToken_String(t *testing.T) {
+	tests := []struct {
+		name string
+		a    AttToken
+		want string
+	}{
+		{
+			a:    ATT_CDATA,
+			want: "CDATA",
+		},
+		{
+			a:    ATT_ID,
+			want: "ID",
+		},
+		{
+			a:    ATT_IDREF,
+			want: "IDREF",
+		},
+		{
+			a:    ATT_IDREFS,
+			want: "IDREFS",
+		},
+		{
+			a:    ATT_ENTITY,
+			want: "ENTITY",
+		},
+		{
+			a:    ATT_ENTITIES,
+			want: "ENTITIES",
+		},
+		{
+			a:    ATT_NMTOKEN,
+			want: "NMTOKEN",
+		},
+		{
+			a:    ATT_NMTOKENS,
+			want: "NMTOKENS",
+		},
+		{
+			name: "unknown",
+			a:    0,
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.a.String(); got != tt.want {
+				t.Errorf("AttToken.String() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1176,6 +1262,23 @@ func TestCData_String(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.c.String(); got != tt.want {
 				t.Errorf("CData.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExternalType_String(t *testing.T) {
+	tests := []struct {
+		name string
+		e    ExternalType
+		want string
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.e.String(); got != tt.want {
+				t.Errorf("ExternalType.String() = %v, want %v", got, tt.want)
 			}
 		})
 	}

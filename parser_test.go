@@ -31,8 +31,8 @@ func TestParser_Parse(t *testing.T) {
 					DOCType: &DOCType{
 						Name: "document",
 						ExtID: &ExternalID{
-							Identifier: ExtSystem,
-							System:     "subjects.dtd",
+							Type:   EXT_SYSTEM,
+							System: "subjects.dtd",
 						},
 					},
 				},
@@ -100,9 +100,9 @@ func TestParser_parseProlog(t *testing.T) {
 				DOCType: &DOCType{
 					Name: "html",
 					ExtID: &ExternalID{
-						Identifier: ExtPublic,
-						Pubid:      "-//W3C//DTD XHTML 1.0 Transitional//EN",
-						System:     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd",
+						Type:   EXT_PUBLIC,
+						Pubid:  "-//W3C//DTD XHTML 1.0 Transitional//EN",
+						System: "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd",
 					},
 				},
 			},
@@ -120,8 +120,8 @@ func TestParser_parseProlog(t *testing.T) {
 				DOCType: &DOCType{
 					Name: "document",
 					ExtID: &ExternalID{
-						Identifier: ExtSystem,
-						System:     "subjects.dtd",
+						Type:   EXT_SYSTEM,
+						System: "subjects.dtd",
 					},
 				},
 			},
@@ -840,7 +840,7 @@ func TestParser_parseDoctype(t *testing.T) {
 					},
 					&Entity{
 						Name: "js",
-						Type: EntityType_GE,
+						Type: ENTITY_GE,
 						Value: EntityValue{
 							"Jo Smith",
 						},
@@ -857,8 +857,8 @@ func TestParser_parseDoctype(t *testing.T) {
 			want: &DOCType{
 				Name: "author",
 				ExtID: &ExternalID{
-					Identifier: ExtSystem,
-					System:     "system",
+					Type:   EXT_SYSTEM,
+					System: "system",
 				},
 				Markups: []Markup{
 					&ElementDecl{
@@ -867,7 +867,7 @@ func TestParser_parseDoctype(t *testing.T) {
 					},
 					&Entity{
 						Name: "js",
-						Type: EntityType_GE,
+						Type: ENTITY_GE,
 						Value: EntityValue{
 							"Jo Smith",
 						},
@@ -944,7 +944,7 @@ func TestParser_parseMarkup(t *testing.T) {
 							Cases: []string{"important", "normal"},
 						},
 						Decl: &DefaultDecl{
-							Type: REQUIRED,
+							Type: DECL_REQUIRED,
 						},
 					},
 				},
@@ -956,10 +956,10 @@ func TestParser_parseMarkup(t *testing.T) {
 			"http://example.com/a.gif">`,
 			want: &Entity{
 				Name: "a",
-				Type: EntityType_GE,
+				Type: ENTITY_GE,
 				ExtID: &ExternalID{
-					Identifier: ExtSystem,
-					System:     "http://example.com/a.gif",
+					Type:   EXT_SYSTEM,
+					System: "http://example.com/a.gif",
 				},
 			},
 		},
@@ -969,8 +969,8 @@ func TestParser_parseMarkup(t *testing.T) {
 			want: &Notation{
 				Name: "vrml",
 				ExtID: ExternalID{
-					Identifier: ExtPublic,
-					Pubid:      "VRML 1.0",
+					Type:  EXT_PUBLIC,
+					Pubid: "VRML 1.0",
 				},
 			},
 		},
@@ -1817,9 +1817,9 @@ func TestParser_parseAttlist(t *testing.T) {
 				Defs: []*AttDef{
 					&AttDef{
 						Name: "height",
-						Type: Att_CDATA,
+						Type: ATT_CDATA,
 						Decl: &DefaultDecl{
-							Type: REQUIRED,
+							Type: DECL_REQUIRED,
 						},
 					},
 				},
@@ -1882,9 +1882,9 @@ func TestParser_parseAttDef(t *testing.T) {
 			source: ` name CDATA #REQUIRED`,
 			want: &AttDef{
 				Name: "name",
-				Type: Att_CDATA,
+				Type: ATT_CDATA,
 				Decl: &DefaultDecl{
-					Type: REQUIRED,
+					Type: DECL_REQUIRED,
 				},
 			},
 		},
@@ -1913,35 +1913,35 @@ func TestParser_parseAttType(t *testing.T) {
 	}{
 		{
 			source: "CDATA",
-			want:   Att_CDATA,
+			want:   ATT_CDATA,
 		},
 		{
 			source: "ID",
-			want:   Att_ID,
+			want:   ATT_ID,
 		},
 		{
 			source: "IDREF",
-			want:   Att_IDREF,
+			want:   ATT_IDREF,
 		},
 		{
 			source: "IDREFS",
-			want:   Att_IDREFS,
+			want:   ATT_IDREFS,
 		},
 		{
 			source: "ENTITY",
-			want:   Att_ENTITY,
+			want:   ATT_ENTITY,
 		},
 		{
 			source: "ENTITIES",
-			want:   Att_ENTITIES,
+			want:   ATT_ENTITIES,
 		},
 		{
 			source: "NMTOKEN",
-			want:   Att_NMTOKEN,
+			want:   ATT_NMTOKEN,
 		},
 		{
 			source: "NMTOKENS",
-			want:   Att_NMTOKENS,
+			want:   ATT_NMTOKENS,
 		},
 		{
 			source: "NOTATION (a)",
@@ -2103,19 +2103,19 @@ func TestParser_parseDefaultDecl(t *testing.T) {
 		{
 			source: "#REQUIRED",
 			want: &DefaultDecl{
-				Type: REQUIRED,
+				Type: DECL_REQUIRED,
 			},
 		},
 		{
 			source: "#IMPLIED",
 			want: &DefaultDecl{
-				Type: IMPLIED,
+				Type: DECL_IMPLIED,
 			},
 		},
 		{
 			source: `#FIXED "a"`,
 			want: &DefaultDecl{
-				Type:     FIXED,
+				Type:     DECL_FIXED,
 				AttValue: []interface{}{"a"},
 			},
 		},
@@ -2133,7 +2133,7 @@ func TestParser_parseDefaultDecl(t *testing.T) {
 			name:   "no #FIXED",
 			source: `"aa"`,
 			want: &DefaultDecl{
-				Type:     FIXED,
+				Type:     DECL_FIXED,
 				AttValue: []interface{}{"aa"},
 			},
 		},
@@ -2338,7 +2338,7 @@ func TestParser_parseEntity(t *testing.T) {
 			source: `<!ENTITY % a "b,c">`,
 			want: &Entity{
 				Name:  "a",
-				Type:  EntityType_PE,
+				Type:  ENTITY_PE,
 				Value: EntityValue{"b,c"},
 			},
 		},
@@ -2347,7 +2347,7 @@ func TestParser_parseEntity(t *testing.T) {
 			source: `<!ENTITY a "b,c">`,
 			want: &Entity{
 				Name:  "a",
-				Type:  EntityType_GE,
+				Type:  ENTITY_GE,
 				Value: EntityValue{"b,c"},
 			},
 		},
@@ -2390,16 +2390,16 @@ func TestParser_parseEntityDef(t *testing.T) {
 			name:   "ExternalID",
 			source: `SYSTEM "aa"`,
 			want1: &ExternalID{
-				Identifier: ExtSystem,
-				System:     "aa",
+				Type:   EXT_SYSTEM,
+				System: "aa",
 			},
 		},
 		{
 			name:   "ExternalID with NData",
 			source: `SYSTEM "aa" NDATA bb`,
 			want1: &ExternalID{
-				Identifier: ExtSystem,
-				System:     "aa",
+				Type:   EXT_SYSTEM,
+				System: "aa",
 			},
 			want2: "bb",
 		},
@@ -2462,8 +2462,8 @@ func TestParser_parsePEDef(t *testing.T) {
 			name:   "ExternalID",
 			source: `SYSTEM "aa"`,
 			want1: &ExternalID{
-				Identifier: ExtSystem,
-				System:     "aa",
+				Type:   EXT_SYSTEM,
+				System: "aa",
 			},
 		},
 		{
@@ -2536,17 +2536,17 @@ func TestParser_parseExternalID(t *testing.T) {
 			name:   "public no error",
 			source: `PUBLIC "pub" "sys"`,
 			want: &ExternalID{
-				Identifier: ExtPublic,
-				Pubid:      "pub",
-				System:     "sys",
+				Type:   EXT_PUBLIC,
+				Pubid:  "pub",
+				System: "sys",
 			},
 		},
 		{
 			name:   "system no error",
 			source: `SYSTEM "sys"`,
 			want: &ExternalID{
-				Identifier: ExtSystem,
-				System:     "sys",
+				Type:   EXT_SYSTEM,
+				System: "sys",
 			},
 		},
 	}
@@ -2724,12 +2724,12 @@ func TestParser_parseNotation(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "invalid external identifier",
+			name:    "invalid external Type",
 			source:  `<!NOTATION name PUB "public_ID" "URI">`,
 			wantErr: true,
 		},
 		{
-			name:    "no space external identifier",
+			name:    "no space external Type",
 			source:  `<!NOTATION name PUBLIC"public_ID" "URI">`,
 			wantErr: true,
 		},
@@ -2754,9 +2754,9 @@ func TestParser_parseNotation(t *testing.T) {
 			want: &Notation{
 				Name: "name",
 				ExtID: ExternalID{
-					Identifier: ExtPublic,
-					Pubid:      "public_ID",
-					System:     "URI",
+					Type:   EXT_PUBLIC,
+					Pubid:  "public_ID",
+					System: "URI",
 				},
 			},
 		},
@@ -2766,8 +2766,8 @@ func TestParser_parseNotation(t *testing.T) {
 			want: &Notation{
 				Name: "name",
 				ExtID: ExternalID{
-					Identifier: ExtPublic,
-					Pubid:      "public_ID",
+					Type:  EXT_PUBLIC,
+					Pubid: "public_ID",
 				},
 			},
 		},
@@ -2777,8 +2777,8 @@ func TestParser_parseNotation(t *testing.T) {
 			want: &Notation{
 				Name: "name",
 				ExtID: ExternalID{
-					Identifier: ExtPublic,
-					Pubid:      "public_ID",
+					Type:  EXT_PUBLIC,
+					Pubid: "public_ID",
 				},
 			},
 		},
@@ -2788,8 +2788,8 @@ func TestParser_parseNotation(t *testing.T) {
 			want: &Notation{
 				Name: "name",
 				ExtID: ExternalID{
-					Identifier: ExtSystem,
-					System:     "system",
+					Type:   EXT_SYSTEM,
+					System: "system",
 				},
 			},
 		},

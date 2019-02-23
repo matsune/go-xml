@@ -556,7 +556,7 @@ func (p *Parser) parseDoctype() (*DOCType, error) {
 
 	p.skipSpace()
 
-	if p.Tests(string(ExtSystem)) || p.Tests(string(ExtPublic)) {
+	if p.Tests("SYSTEM") || p.Tests("PUBLIC") {
 		var ext *ExternalID
 		ext, err = p.parseExternalID()
 		if err != nil {
@@ -1175,31 +1175,31 @@ func (p *Parser) parseAttDef() (*AttDef, error) {
 
 // AttType ::= StringType | TokenizedType | EnumeratedType
 func (p *Parser) parseAttType() (AttType, error) {
-	if p.Tests(string(Att_CDATA)) {
-		p.StepN(len(Att_CDATA))
-		return Att_CDATA, nil
-	} else if p.Tests(string(Att_ID)) || p.Tests(string(Att_IDREF)) || p.Tests(string(Att_IDREFS)) || p.Tests(string(Att_ENTITY)) || p.Tests(string(Att_ENTITIES)) || p.Tests(string(Att_NMTOKEN)) || p.Tests(string(Att_NMTOKENS)) {
-		var tok TokenizedType
+	if p.Tests(ATT_CDATA.String()) {
+		p.StepN(len(ATT_CDATA.String()))
+		return ATT_CDATA, nil
+	} else if p.Tests(ATT_ID.String()) || p.Tests(ATT_IDREF.String()) || p.Tests(ATT_IDREFS.String()) || p.Tests(ATT_ENTITY.String()) || p.Tests(ATT_ENTITIES.String()) || p.Tests(ATT_NMTOKEN.String()) || p.Tests(ATT_NMTOKENS.String()) {
+		var tok AttToken
 		switch {
-		case p.Tests(string(Att_ID)):
-			tok = Att_ID
-			if p.Tests(string(Att_IDREF)) {
-				tok = Att_IDREF
-				if p.Tests(string(Att_IDREFS)) {
-					tok = Att_IDREFS
+		case p.Tests(ATT_ID.String()):
+			tok = ATT_ID
+			if p.Tests(ATT_IDREF.String()) {
+				tok = ATT_IDREF
+				if p.Tests(ATT_IDREFS.String()) {
+					tok = ATT_IDREFS
 				}
 			}
-		case p.Tests(string(Att_ENTITY)):
-			tok = Att_ENTITY
-		case p.Tests(string(Att_ENTITIES)):
-			tok = Att_ENTITIES
-		case p.Tests(string(Att_NMTOKEN)):
-			tok = Att_NMTOKEN
-			if p.Tests(string(Att_NMTOKENS)) {
-				tok = Att_NMTOKENS
+		case p.Tests(ATT_ENTITY.String()):
+			tok = ATT_ENTITY
+		case p.Tests(ATT_ENTITIES.String()):
+			tok = ATT_ENTITIES
+		case p.Tests(ATT_NMTOKEN.String()):
+			tok = ATT_NMTOKEN
+			if p.Tests(ATT_NMTOKENS.String()) {
+				tok = ATT_NMTOKENS
 			}
 		}
-		p.StepN(len(tok))
+		p.StepN(len(tok.String()))
 		return tok, nil
 	} else if p.Tests("NOTATION") {
 		return p.parseNotationType()
@@ -1325,22 +1325,22 @@ func (p *Parser) parseNmtoken() (string, error) {
 func (p *Parser) parseDefaultDecl() (*DefaultDecl, error) {
 	var d DefaultDecl
 	var err error
-	if p.Tests(string(REQUIRED)) {
-		p.StepN(len(REQUIRED))
-		d.Type = REQUIRED
+	if p.Tests(DECL_REQUIRED.String()) {
+		p.StepN(len(DECL_REQUIRED.String()))
+		d.Type = DECL_REQUIRED
 		return &d, nil
-	} else if p.Tests(string(IMPLIED)) {
-		p.StepN(len(IMPLIED))
-		d.Type = IMPLIED
+	} else if p.Tests(DECL_IMPLIED.String()) {
+		p.StepN(len(DECL_IMPLIED.String()))
+		d.Type = DECL_IMPLIED
 		return &d, nil
 	} else {
-		if p.Tests(string(FIXED)) {
-			p.StepN(len(FIXED))
+		if p.Tests(DECL_FIXED.String()) {
+			p.StepN(len(DECL_FIXED.String()))
 			if err = p.parseSpace(); err != nil {
 				return nil, err
 			}
 		}
-		d.Type = FIXED
+		d.Type = DECL_FIXED
 		if d.AttValue, err = p.parseAttValue(); err != nil {
 			return nil, err
 		}
@@ -1472,7 +1472,7 @@ func (p *Parser) parseEntity() (*Entity, error) {
 	// GEDecl ::= '<!ENTITY' S Name S EntityDef S? '>'
 
 	if p.Test('%') {
-		e.Type = EntityType_PE
+		e.Type = ENTITY_PE
 
 		p.Step()
 
@@ -1480,7 +1480,7 @@ func (p *Parser) parseEntity() (*Entity, error) {
 			return nil, err
 		}
 	} else {
-		e.Type = EntityType_GE
+		e.Type = ENTITY_GE
 	}
 
 	if e.Name, err = p.parseName(); err != nil {
@@ -1491,7 +1491,7 @@ func (p *Parser) parseEntity() (*Entity, error) {
 		return nil, err
 	}
 
-	if e.Type == EntityType_PE {
+	if e.Type == ENTITY_PE {
 		// PEDef
 		e.Value, e.ExtID, err = p.parsePEDef()
 	} else {
@@ -1572,12 +1572,12 @@ func (p *Parser) parsePEDef() (EntityValue, *ExternalID, error) {
 // ExternalID ::= 'SYSTEM' S SystemLiteral | 'PUBLIC' S PubidLiteral S SystemLiteral
 func (p *Parser) parseExternalID() (*ExternalID, error) {
 	var ext ExternalID
-	if p.Tests(string(ExtSystem)) {
-		p.StepN(len(ExtSystem))
-		ext.Identifier = ExtSystem
-	} else if p.Tests(string(ExtPublic)) {
-		p.StepN(len(ExtPublic))
-		ext.Identifier = ExtPublic
+	if p.Tests("SYSTEM") {
+		p.StepN(len("SYSTEM"))
+		ext.Type = EXT_SYSTEM
+	} else if p.Tests("PUBLIC") {
+		p.StepN(len("PUBLIC"))
+		ext.Type = EXT_PUBLIC
 	} else {
 		return nil, p.errorf("error while parsing ExternalID")
 	}
@@ -1586,7 +1586,7 @@ func (p *Parser) parseExternalID() (*ExternalID, error) {
 		return nil, err
 	}
 
-	if ext.Identifier == ExtPublic {
+	if ext.Type == EXT_PUBLIC {
 		pubid, err := p.parsePubidLiteral()
 		if err != nil {
 			return nil, err
@@ -1698,12 +1698,12 @@ func (p *Parser) parseNotation() (*Notation, error) {
 
 	// ExternalID ::= 'SYSTEM' S SystemLiteral | 'PUBLIC' S PubidLiteral
 	var ext ExternalID
-	if p.Tests(string(ExtSystem)) {
-		p.StepN(len(ExtSystem))
-		ext.Identifier = ExtSystem
-	} else if p.Tests(string(ExtPublic)) {
-		p.StepN(len(ExtPublic))
-		ext.Identifier = ExtPublic
+	if p.Tests("SYSTEM") {
+		p.StepN(len("SYSTEM"))
+		ext.Type = EXT_SYSTEM
+	} else if p.Tests("PUBLIC") {
+		p.StepN(len("PUBLIC"))
+		ext.Type = EXT_PUBLIC
 	} else {
 		return nil, p.errorf("error while parsing ExternalID")
 	}
@@ -1712,7 +1712,7 @@ func (p *Parser) parseNotation() (*Notation, error) {
 		return nil, err
 	}
 
-	if ext.Identifier == ExtPublic {
+	if ext.Type == EXT_PUBLIC {
 		pubid, err := p.parsePubidLiteral()
 		if err != nil {
 			return nil, err
