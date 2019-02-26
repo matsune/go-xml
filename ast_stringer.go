@@ -5,6 +5,33 @@ import (
 	"strings"
 )
 
+func (x XML) String() string {
+	var str string
+	if x.Prolog != nil {
+		str += x.Prolog.String()
+	}
+	if x.Element != nil {
+		str += x.Element.String()
+	}
+	if len(x.Misc) > 0 {
+		for _, m := range x.Misc {
+			str += fmt.Sprintf("%s", m)
+		}
+	}
+	return str
+}
+
+func (p Prolog) String() string {
+	var str string
+	if p.XMLDecl != nil {
+		str += p.XMLDecl.String()
+	}
+	if p.DOCType != nil {
+		str += p.DOCType.String()
+	}
+	return str
+}
+
 func (x XMLDecl) String() string {
 	str := "<?xml"
 
