@@ -42,16 +42,57 @@ func (f *Formatter) insertIndent(depth int) {
 	}
 }
 
-func (f *Formatter) FormatXML(x *XML) {
+func (f *Formatter) Format(a AST) {
+	f.format(a, 0)
+}
+
+func (f *Formatter) FormatDepth(a AST, depth int) {
+	f.format(a, depth)
+}
+
+func (f *Formatter) format(a AST, depth int) {
+	if a == nil {
+		return
+	}
+	switch v := a.(type) {
+	case *XML:
+		f.FormatXML(v, depth)
+	case *Prolog:
+		f.FormatProlog(v, depth)
+	case *XMLDecl:
+		f.FormatXMLDecl(v, depth)
+	case *DOCType:
+		f.FormatDOCType(v, depth)
+	case *Element:
+		f.FormatElement(v, depth)
+	case Terminal:
+		f.insertIndent(depth)
+		f.print(v.ToString())
+	default:
+		panic("unknown AST type")
+	}
+}
+
+func (f *Formatter) FormatXML(x *XML, depth int) {
 	if x == nil {
 		return
 	}
-	f.FormatProlog(x.Prolog, 0)
+	f.format(x.Prolog, depth)
 	f.ln()
-	f.FormatElement(x.Element, 0)
+	f.format(x.Element, depth)
 	f.ln()
 	for _, m := range x.Misc {
-		f.println(m)
+		f.insertIndent(depth)
+		f.formatMisc(m, depth)
+	}
+}
+
+func (f *Formatter) formatMisc(i interface{}, depth int) {
+	switch v := i.(type) {
+	case AST:
+		f.format(v, depth)
+	default:
+		f.print(v)
 	}
 }
 
@@ -59,9 +100,9 @@ func (f *Formatter) FormatProlog(p *Prolog, depth int) {
 	if p == nil {
 		return
 	}
-	f.FormatXMLDecl(p.XMLDecl, depth)
+	f.format(p.XMLDecl, depth)
 	f.ln()
-	f.FormatDOCType(p.DOCType, depth)
+	f.format(p.DOCType, depth)
 }
 
 func (f *Formatter) FormatXMLDecl(x *XMLDecl, depth int) {
@@ -69,7 +110,6 @@ func (f *Formatter) FormatXMLDecl(x *XMLDecl, depth int) {
 		return
 	}
 	f.insertIndent(depth)
-
 	f.printf(`<?xml version="%s"`, x.Version)
 	if len(x.Encoding) > 0 {
 		f.printf(` encoding="%s"`, x.Encoding)
@@ -86,31 +126,29 @@ func (f *Formatter) FormatDOCType(d *DOCType, depth int) {
 		return
 	}
 	f.insertIndent(depth)
-
 	f.printf("<!DOCTYPE %s", d.Name)
-
 	if d.ExtID != nil {
-		f.printf(" %s", d.ExtID)
+		f.printf(" %s", d.ExtID.ToString())
 	}
 
 	hasMarkups := len(d.Markups) > 0 || d.PERef != nil
 
 	if hasMarkups {
-		f.print(" [\n")
+		f.println(" [")
 	}
 	for _, m := range d.Markups {
-		f.insertIndent(depth + 1)
-		f.println(m)
+		f.format(m, depth+1)
+		f.ln()
 	}
 	if d.PERef != nil {
-		f.insertIndent(depth + 1)
-		f.println(d.PERef)
+		f.format(d.PERef, depth+1)
+		f.ln()
 	}
 	if hasMarkups {
 		f.insertIndent(depth)
 		f.print("]")
 	}
-	f.printf(">")
+	f.print(">")
 }
 
 func (f *Formatter) FormatElement(e *Element, depth int) {
@@ -121,7 +159,7 @@ func (f *Formatter) FormatElement(e *Element, depth int) {
 	f.printf("<%s", e.Name)
 
 	for _, attr := range e.Attrs {
-		f.printf(" %s", attr)
+		f.printf(" %s", attr.ToString())
 	}
 
 	if e.IsEmptyTag {
@@ -135,13 +173,13 @@ func (f *Formatter) FormatElement(e *Element, depth int) {
 		switch v := c.(type) {
 		case *Element:
 			f.ln()
-			f.FormatElement(v, depth+1)
+			f.format(v, depth+1)
 			if i == len(e.Contents)-1 {
 				f.ln()
 				f.insertIndent(depth)
 			}
 		default:
-			f.print(v, depth+1)
+			f.formatMisc(v, depth+1)
 		}
 	}
 

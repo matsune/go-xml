@@ -4,123 +4,27 @@ import (
 	"testing"
 )
 
-func TestXMLDecl_String(t *testing.T) {
-	type fields struct {
-		Version    string
-		Encoding   string
-		Standalone bool
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   string
-	}{
-		{
-			fields: fields{
-				Version:    "1.0",
-				Encoding:   "UTF-8",
-				Standalone: true,
-			},
-			want: `<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>`,
-		},
-		{
-			fields: fields{
-				Version: "1.1",
-			},
-			want: `<?xml version="1.1" standalone="no" ?>`,
-		},
-		{
-			fields: fields{},
-			want:   `<?xml version="" standalone="no" ?>`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			x := &XMLDecl{
-				Version:    tt.fields.Version,
-				Encoding:   tt.fields.Encoding,
-				Standalone: tt.fields.Standalone,
-			}
-			if got := x.String(); got != tt.want {
-				t.Errorf("XMLDecl.String() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestDOCType_String(t *testing.T) {
+func TestExternalType_String(t *testing.T) {
 	tests := []struct {
 		name string
-		DOCType
+		e    ExternalType
 		want string
 	}{
 		{
-			name: "only name",
-			DOCType: DOCType{
-				Name: "html",
-			},
-			want: `<!DOCTYPE html>`,
+			name: "public",
+			e:    ExternalTypePublic,
+			want: "PUBLIC",
 		},
 		{
-			name: "name and ExtID",
-			DOCType: DOCType{
-				Name: "html",
-				ExtID: &ExternalID{
-					Type:   EXT_PUBLIC,
-					Pubid:  "pubid",
-					System: "system",
-				},
-			},
-			want: `<!DOCTYPE html PUBLIC "pubid" "system">`,
-		},
-		{
-			name: "name and markups",
-			DOCType: DOCType{
-				Name: "html",
-				Markups: []Markup{
-					&ElementDecl{
-						Name:        "element",
-						ContentSpec: &EMPTY{},
-					},
-					Comment("comment"),
-					&Attlist{
-						Name: "attlist",
-						Defs: []*AttDef{
-							&AttDef{
-								Name: "attdef",
-								Type: ATT_IDREF,
-								Decl: &DefaultDecl{
-									Type: DECL_REQUIRED,
-								},
-							},
-						},
-					},
-					&Entity{
-						Name: "entity",
-						Type: ENTITY_GE,
-						Value: EntityValue{
-							"a",
-						},
-					},
-					&Notation{
-						Name: "notation",
-						ExtID: ExternalID{
-							Type:   EXT_SYSTEM,
-							System: "system",
-						},
-					},
-				},
-				PERef: &PERef{
-					Name: "peref",
-				},
-			},
-			want: `<!DOCTYPE html [<!ELEMENT element EMPTY> <!--comment--> <!ATTLIST attlist attdef IDREF #REQUIRED> <!ENTITY entity "a"> <!NOTATION notation SYSTEM "system"> %peref;]>`,
+			name: "system",
+			e:    ExternalTypeSystem,
+			want: "SYSTEM",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.DOCType.String(); got != tt.want {
-				t.Errorf("DOCType.String() = %v, want %v", got, tt.want)
+			if got := tt.e.ToString(); got != tt.want {
+				t.Errorf("ExternalType.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -140,7 +44,7 @@ func TestExternalID_String(t *testing.T) {
 		{
 			name: "system",
 			fields: fields{
-				Type:   EXT_SYSTEM,
+				Type:   ExternalTypeSystem,
 				System: "system",
 			},
 			want: `SYSTEM "system"`,
@@ -148,7 +52,7 @@ func TestExternalID_String(t *testing.T) {
 		{
 			name: "pubid",
 			fields: fields{
-				Type:  EXT_PUBLIC,
+				Type:  ExternalTypePublic,
 				Pubid: "pubid",
 			},
 			want: `PUBLIC "pubid"`,
@@ -156,7 +60,7 @@ func TestExternalID_String(t *testing.T) {
 		{
 			name: "pubid and system",
 			fields: fields{
-				Type:   EXT_PUBLIC,
+				Type:   ExternalTypePublic,
 				Pubid:  "pubid",
 				System: "system",
 			},
@@ -170,8 +74,8 @@ func TestExternalID_String(t *testing.T) {
 				Pubid:  tt.fields.Pubid,
 				System: tt.fields.System,
 			}
-			if got := e.String(); got != tt.want {
-				t.Errorf("ExternalID.String() = %v, want %v", got, tt.want)
+			if got := e.ToString(); got != tt.want {
+				t.Errorf("ExternalID.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -237,8 +141,8 @@ func TestElementDecl_String(t *testing.T) {
 				Name:        tt.fields.Name,
 				ContentSpec: tt.fields.ContentSpec,
 			}
-			if got := e.String(); got != tt.want {
-				t.Errorf("ElementDecl.String() = %v, want %v", got, tt.want)
+			if got := e.ToString(); got != tt.want {
+				t.Errorf("ElementDecl.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -264,7 +168,7 @@ func TestAttlist_String(t *testing.T) {
 							Cases: []string{"important", "normal"},
 						},
 						Decl: &DefaultDecl{
-							Type: DECL_IMPLIED,
+							Type: DefaultDeclTypeImplied,
 						},
 					},
 				},
@@ -278,8 +182,8 @@ func TestAttlist_String(t *testing.T) {
 				Name: tt.fields.Name,
 				Defs: tt.fields.Defs,
 			}
-			if got := a.String(); got != tt.want {
-				t.Errorf("Attlist.String() = %v, want %v", got, tt.want)
+			if got := a.ToString(); got != tt.want {
+				t.Errorf("Attlist.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -302,7 +206,7 @@ func TestEntity_String(t *testing.T) {
 			name: "GEDecl, EntityValue",
 			fields: fields{
 				Name: "name",
-				Type: ENTITY_GE,
+				Type: EntityTypeGE,
 				Value: EntityValue{
 					"value",
 					PERef{
@@ -316,9 +220,9 @@ func TestEntity_String(t *testing.T) {
 			name: "GEDecl, ExternalID, NData",
 			fields: fields{
 				Name: "name",
-				Type: ENTITY_GE,
+				Type: EntityTypeGE,
 				ExtID: &ExternalID{
-					Type:   EXT_PUBLIC,
+					Type:   ExternalTypePublic,
 					Pubid:  "pubid",
 					System: "system",
 				},
@@ -330,9 +234,9 @@ func TestEntity_String(t *testing.T) {
 			name: "PEDecl, ExternalID",
 			fields: fields{
 				Name: "name",
-				Type: ENTITY_PE,
+				Type: EntityTypePE,
 				ExtID: &ExternalID{
-					Type:   EXT_SYSTEM,
+					Type:   ExternalTypeSystem,
 					System: "system",
 				},
 			},
@@ -342,7 +246,7 @@ func TestEntity_String(t *testing.T) {
 			name: "PEDecl, EntityValue",
 			fields: fields{
 				Name: "name",
-				Type: ENTITY_PE,
+				Type: EntityTypePE,
 				Value: EntityValue{
 					"string",
 					PERef{
@@ -369,8 +273,8 @@ func TestEntity_String(t *testing.T) {
 				ExtID: tt.fields.ExtID,
 				NData: tt.fields.NData,
 			}
-			if got := e.String(); got != tt.want {
-				t.Errorf("Entity.String() = %v, want %v", got, tt.want)
+			if got := e.ToString(); got != tt.want {
+				t.Errorf("Entity.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -390,7 +294,7 @@ func TestNotation_String(t *testing.T) {
 			fields: fields{
 				Name: "nota",
 				ExtID: ExternalID{
-					Type:   EXT_SYSTEM,
+					Type:   ExternalTypeSystem,
 					System: "system",
 				},
 			},
@@ -400,7 +304,7 @@ func TestNotation_String(t *testing.T) {
 			fields: fields{
 				Name: "nota",
 				ExtID: ExternalID{
-					Type:  EXT_PUBLIC,
+					Type:  ExternalTypePublic,
 					Pubid: "pubid",
 				},
 			},
@@ -410,7 +314,7 @@ func TestNotation_String(t *testing.T) {
 			fields: fields{
 				Name: "nota",
 				ExtID: ExternalID{
-					Type:   EXT_PUBLIC,
+					Type:   ExternalTypePublic,
 					Pubid:  "pubid",
 					System: "system",
 				},
@@ -424,8 +328,8 @@ func TestNotation_String(t *testing.T) {
 				Name:  tt.fields.Name,
 				ExtID: tt.fields.ExtID,
 			}
-			if got := n.String(); got != tt.want {
-				t.Errorf("Notation.String() = %v, want %v", got, tt.want)
+			if got := n.ToString(); got != tt.want {
+				t.Errorf("Notation.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -462,8 +366,8 @@ func TestPI_String(t *testing.T) {
 				Target:      tt.fields.Target,
 				Instruction: tt.fields.Instruction,
 			}
-			if got := p.String(); got != tt.want {
-				t.Errorf("PI.String() = %v, want %v", got, tt.want)
+			if got := p.ToString(); got != tt.want {
+				t.Errorf("PI.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -482,8 +386,8 @@ func TestComment_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.c.String(); got != tt.want {
-				t.Errorf("Comment.String() = %v, want %v", got, tt.want)
+			if got := tt.c.ToString(); got != tt.want {
+				t.Errorf("Comment.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -509,8 +413,8 @@ func TestAttDef_String(t *testing.T) {
 				Type: tt.fields.Type,
 				Decl: tt.fields.Decl,
 			}
-			if got := a.String(); got != tt.want {
-				t.Errorf("AttDef.String() = %v, want %v", got, tt.want)
+			if got := a.ToString(); got != tt.want {
+				t.Errorf("AttDef.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -528,21 +432,22 @@ func TestDefaultDecl_String(t *testing.T) {
 	}{
 		{
 			fields: fields{
-				Type: DECL_REQUIRED,
+				Type: DefaultDeclTypeRequired,
 			},
 			want: "#REQUIRED",
 		},
 		{
 			fields: fields{
-				Type: DECL_IMPLIED,
+				Type: DefaultDeclTypeImplied,
 			},
 			want: "#IMPLIED",
 		},
 		{
 			fields: fields{
-				Type: DECL_FIXED,
+				Type: DefaultDeclTypeFixed,
 				AttValue: AttValue{
-					"a", &EntityRef{
+					"a",
+					&EntityRef{
 						Name: "entity",
 					},
 				},
@@ -556,8 +461,8 @@ func TestDefaultDecl_String(t *testing.T) {
 				Type:     tt.fields.Type,
 				AttValue: tt.fields.AttValue,
 			}
-			if got := d.String(); got != tt.want {
-				t.Errorf("DefaultDecl.String() = %v, want %v", got, tt.want)
+			if got := d.ToString(); got != tt.want {
+				t.Errorf("DefaultDecl.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -586,8 +491,8 @@ func TestNotationType_String(t *testing.T) {
 			n := NotationType{
 				Names: tt.fields.Names,
 			}
-			if got := n.String(); got != tt.want {
-				t.Errorf("NotationType.String() = %v, want %v", got, tt.want)
+			if got := n.ToString(); got != tt.want {
+				t.Errorf("NotationType.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -616,8 +521,8 @@ func TestEnum_String(t *testing.T) {
 			e := Enum{
 				Cases: tt.fields.Cases,
 			}
-			if got := e.String(); got != tt.want {
-				t.Errorf("Enum.String() = %v, want %v", got, tt.want)
+			if got := e.ToString(); got != tt.want {
+				t.Errorf("Enum.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -630,15 +535,15 @@ func TestDefaultDeclType_String(t *testing.T) {
 		want string
 	}{
 		{
-			d:    DECL_REQUIRED,
+			d:    DefaultDeclTypeRequired,
 			want: "#REQUIRED",
 		},
 		{
-			d:    DECL_IMPLIED,
+			d:    DefaultDeclTypeImplied,
 			want: "#IMPLIED",
 		},
 		{
-			d:    DECL_FIXED,
+			d:    DefaultDeclTypeFixed,
 			want: "#FIXED",
 		},
 		{
@@ -649,8 +554,8 @@ func TestDefaultDeclType_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.d.String(); got != tt.want {
-				t.Errorf("DefaultDeclType.String() = %v, want %v", got, tt.want)
+			if got := tt.d.ToString(); got != tt.want {
+				t.Errorf("DefaultDeclType.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -663,35 +568,35 @@ func TestAttToken_String(t *testing.T) {
 		want string
 	}{
 		{
-			a:    ATT_CDATA,
+			a:    AttTokenCDATA,
 			want: "CDATA",
 		},
 		{
-			a:    ATT_ID,
+			a:    AttTokenID,
 			want: "ID",
 		},
 		{
-			a:    ATT_IDREF,
+			a:    AttTokenIDREF,
 			want: "IDREF",
 		},
 		{
-			a:    ATT_IDREFS,
+			a:    AttTokenIDREFS,
 			want: "IDREFS",
 		},
 		{
-			a:    ATT_ENTITY,
+			a:    AttTokenENTITY,
 			want: "ENTITY",
 		},
 		{
-			a:    ATT_ENTITIES,
+			a:    AttTokenENTITIES,
 			want: "ENTITIES",
 		},
 		{
-			a:    ATT_NMTOKEN,
+			a:    AttTokenNMTOKEN,
 			want: "NMTOKEN",
 		},
 		{
-			a:    ATT_NMTOKENS,
+			a:    AttTokenNMTOKENS,
 			want: "NMTOKENS",
 		},
 		{
@@ -702,29 +607,29 @@ func TestAttToken_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.a.String(); got != tt.want {
-				t.Errorf("AttToken.String() = %v, want %v", got, tt.want)
+			if got := tt.a.ToString(); got != tt.want {
+				t.Errorf("AttToken.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
 func TestEMPTY_String(t *testing.T) {
-	t.Run("EMPTY String()", func(t *testing.T) {
+	t.Run("EMPTY ToString()", func(t *testing.T) {
 		want := "EMPTY"
 		e := EMPTY{}
-		if got := e.String(); got != want {
-			t.Errorf("EMPTY.String() = %v, want %v", got, want)
+		if got := e.ToString(); got != want {
+			t.Errorf("EMPTY.ToString() = %v, want %v", got, want)
 		}
 	})
 }
 
 func TestANY_String(t *testing.T) {
-	t.Run("ANY String()", func(t *testing.T) {
+	t.Run("ANY ToString()", func(t *testing.T) {
 		want := "ANY"
 		e := ANY{}
-		if got := e.String(); got != want {
-			t.Errorf("EMPTY.String() = %v, want %v", got, want)
+		if got := e.ToString(); got != want {
+			t.Errorf("EMPTY.ToString() = %v, want %v", got, want)
 		}
 	})
 }
@@ -754,8 +659,8 @@ func TestMixed_String(t *testing.T) {
 			m := Mixed{
 				Names: tt.fields.Names,
 			}
-			if got := m.String(); got != tt.want {
-				t.Errorf("Mixed.String() = %v, want %v", got, tt.want)
+			if got := m.ToString(); got != tt.want {
+				t.Errorf("Mixed.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -806,8 +711,8 @@ func TestChildren_String(t *testing.T) {
 				ChoiceSeq: tt.fields.ChoiceSeq,
 				Suffix:    tt.fields.Suffix,
 			}
-			if got := c.String(); got != tt.want {
-				t.Errorf("Children.String() = %v, want %v", got, tt.want)
+			if got := c.ToString(); got != tt.want {
+				t.Errorf("Children.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -874,8 +779,8 @@ func TestCP_String(t *testing.T) {
 				ChoiceSeq: tt.fields.ChoiceSeq,
 				Suffix:    tt.fields.Suffix,
 			}
-			if got := c.String(); got != tt.want {
-				t.Errorf("CP.String() = %v, want %v", got, tt.want)
+			if got := c.ToString(); got != tt.want {
+				t.Errorf("CP.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -909,8 +814,8 @@ func TestChoice_String(t *testing.T) {
 			c := Choice{
 				CPs: tt.fields.CPs,
 			}
-			if got := c.String(); got != tt.want {
-				t.Errorf("Choice.String() = %v, want %v", got, tt.want)
+			if got := c.ToString(); got != tt.want {
+				t.Errorf("Choice.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -944,8 +849,8 @@ func TestSeq_String(t *testing.T) {
 			s := Seq{
 				CPs: tt.fields.CPs,
 			}
-			if got := s.String(); got != tt.want {
-				t.Errorf("Seq.String() = %v, want %v", got, tt.want)
+			if got := s.ToString(); got != tt.want {
+				t.Errorf("Seq.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -976,8 +881,8 @@ func TestEntityValue_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.e.String(); got != tt.want {
-				t.Errorf("EntityValue.String() = %v, want %v", got, tt.want)
+			if got := tt.e.ToString(); got != tt.want {
+				t.Errorf("EntityValue.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1005,8 +910,8 @@ func TestAttValue_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.a.String(); got != tt.want {
-				t.Errorf("AttValue.String() = %v, want %v", got, tt.want)
+			if got := tt.a.ToString(); got != tt.want {
+				t.Errorf("AttValue.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1043,8 +948,8 @@ func TestCharRef_String(t *testing.T) {
 				Prefix: tt.fields.Prefix,
 				Value:  tt.fields.Value,
 			}
-			if got := e.String(); got != tt.want {
-				t.Errorf("CharRef.String() = %v, want %v", got, tt.want)
+			if got := e.ToString(); got != tt.want {
+				t.Errorf("CharRef.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1066,8 +971,8 @@ func TestEntityRef_String(t *testing.T) {
 			e := EntityRef{
 				Name: tt.refName,
 			}
-			if got := e.String(); got != tt.want {
-				t.Errorf("EntityRef.String() = %v, want %v", got, tt.want)
+			if got := e.ToString(); got != tt.want {
+				t.Errorf("EntityRef.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1092,73 +997,8 @@ func TestPERef_String(t *testing.T) {
 			e := PERef{
 				Name: tt.refName,
 			}
-			if got := e.String(); got != tt.want {
-				t.Errorf("PERef.String() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestElement_String(t *testing.T) {
-	type fields struct {
-		Name       string
-		Attrs      Attributes
-		Contents   []interface{}
-		IsEmptyTag bool
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   string
-	}{
-		{
-			name: "empty tag",
-			fields: fields{
-				Name:       "document",
-				IsEmptyTag: true,
-			},
-			want: `<document/>`,
-		},
-		{
-			name: "has contents",
-			fields: fields{
-				Name: "document",
-				Attrs: Attributes{
-					&Attribute{
-						Name: "date",
-						AttValue: AttValue{
-							"2019/02/23",
-						},
-					},
-					&Attribute{
-						Name: "attr",
-						AttValue: AttValue{
-							&CharRef{
-								Prefix: "&#x",
-								Value:  "0a",
-							},
-						},
-					},
-				},
-				Contents: []interface{}{
-					"contents",
-					Comment(" comment "),
-				},
-				IsEmptyTag: false,
-			},
-			want: `<document date="2019/02/23" attr="&#x0a;">contents<!-- comment --></document>`,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			e := Element{
-				Name:       tt.fields.Name,
-				Attrs:      tt.fields.Attrs,
-				Contents:   tt.fields.Contents,
-				IsEmptyTag: tt.fields.IsEmptyTag,
-			}
-			if got := e.String(); got != tt.want {
-				t.Errorf("Element.String() = %v, want %v", got, tt.want)
+			if got := e.ToString(); got != tt.want {
+				t.Errorf("PERef.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1197,8 +1037,8 @@ func TestAttribute_String(t *testing.T) {
 				Name:     tt.fields.Name,
 				AttValue: tt.fields.AttValue,
 			}
-			if got := a.String(); got != tt.want {
-				t.Errorf("Attribute.String() = %v, want %v", got, tt.want)
+			if got := a.ToString(); got != tt.want {
+				t.Errorf("Attribute.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1240,8 +1080,8 @@ func TestAttributes_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.a.String(); got != tt.want {
-				t.Errorf("Attributes.String() = %v, want %v", got, tt.want)
+			if got := tt.a.ToString(); got != tt.want {
+				t.Errorf("Attributes.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1260,25 +1100,8 @@ func TestCData_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.c.String(); got != tt.want {
-				t.Errorf("CData.String() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestExternalType_String(t *testing.T) {
-	tests := []struct {
-		name string
-		e    ExternalType
-		want string
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.e.String(); got != tt.want {
-				t.Errorf("ExternalType.String() = %v, want %v", got, tt.want)
+			if got := tt.c.ToString(); got != tt.want {
+				t.Errorf("CData.ToString() = %v, want %v", got, tt.want)
 			}
 		})
 	}

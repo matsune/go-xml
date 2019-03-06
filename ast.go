@@ -1,14 +1,23 @@
 package xml
 
 type (
+	AST interface {
+		AST()
+	}
+
+	Terminal interface {
+		AST
+		ToString() string
+	}
+)
+
+type (
 	XML struct {
 		*Prolog
 		*Element
 		Misc []interface{}
 	}
-)
 
-type (
 	Prolog struct {
 		// ignoring Miscs
 		*XMLDecl
@@ -27,9 +36,7 @@ type (
 		Markups []Markup
 		PERef   *PERef
 	}
-)
 
-type (
 	ExternalType int
 
 	ExternalID struct {
@@ -37,16 +44,11 @@ type (
 		Pubid  string
 		System string
 	}
-)
 
-const (
-	EXT_SYSTEM ExternalType = iota
-	EXT_PUBLIC
-)
+	// Markup >>
 
-// Markup
-type (
 	Markup interface {
+		Terminal
 		Markup()
 	}
 
@@ -61,7 +63,8 @@ type (
 	}
 
 	EntityType int
-	Entity     struct {
+
+	Entity struct {
 		Name  string
 		Type  EntityType
 		Value EntityValue
@@ -80,22 +83,9 @@ type (
 	}
 
 	Comment string
-)
 
-const (
-	ENTITY_GE EntityType = iota
-	ENTITY_PE
-)
+	// Attribute Types
 
-func (ElementDecl) Markup() {}
-func (Attlist) Markup()     {}
-func (Entity) Markup()      {}
-func (Notation) Markup()    {}
-func (PI) Markup()          {}
-func (Comment) Markup()     {}
-
-// Attribute Types
-type (
 	AttDef struct {
 		Name string
 		Type AttType
@@ -103,6 +93,7 @@ type (
 	}
 
 	AttType interface {
+		Terminal
 		AttType()
 	}
 
@@ -122,34 +113,11 @@ type (
 		Type DefaultDeclType
 		AttValue
 	}
-)
 
-func (AttToken) AttType()     {}
-func (NotationType) AttType() {}
-func (Enum) AttType()         {}
+	// ContentSpec, ChoiceSeq
 
-const (
-	_ AttToken = iota
-	ATT_CDATA
-	ATT_ID
-	ATT_IDREF
-	ATT_IDREFS
-	ATT_ENTITY
-	ATT_ENTITIES
-	ATT_NMTOKEN
-	ATT_NMTOKENS
-)
-
-const (
-	_ DefaultDeclType = iota
-	DECL_REQUIRED
-	DECL_IMPLIED
-	DECL_FIXED
-)
-
-// ContentSpec, ChoiseSeq
-type (
 	ContentSpec interface {
+		Terminal
 		ContentSpec()
 	}
 
@@ -170,6 +138,7 @@ type (
 	}
 
 	ChoiceSeq interface {
+		Terminal
 		ChoiceSeq()
 	}
 	Choice struct {
@@ -178,19 +147,11 @@ type (
 	Seq struct {
 		CPs []CP // separated ','
 	}
-)
 
-func (EMPTY) ContentSpec()    {}
-func (ANY) ContentSpec()      {}
-func (Mixed) ContentSpec()    {}
-func (Children) ContentSpec() {}
+	// Ref
 
-func (Choice) ChoiceSeq() {}
-func (Seq) ChoiceSeq()    {}
-
-// Ref
-type (
 	Ref interface {
+		Terminal
 		Ref()
 	}
 
@@ -209,13 +170,9 @@ type (
 	PERef struct {
 		Name string // % Name ;
 	}
-)
 
-func (CharRef) Ref()   {}
-func (EntityRef) Ref() {}
+	// Element
 
-// Element
-type (
 	Element struct {
 		Name       string
 		Attrs      Attributes
@@ -229,8 +186,91 @@ type (
 	}
 
 	Attributes []*Attribute
+
+	CData string
 )
 
-type (
-	CData string
+// XML, Prolog, XMLDecl, DOCType and Element are Non-Terminal
+func (XML) AST()             {}
+func (Prolog) AST()          {}
+func (XMLDecl) AST()         {}
+func (DOCType) AST()         {}
+func (ExternalType) AST()    {}
+func (ExternalID) AST()      {}
+func (ElementDecl) AST()     {}
+func (Attlist) AST()         {}
+func (EntityType) AST()      {}
+func (Entity) AST()          {}
+func (Notation) AST()        {}
+func (PI) AST()              {}
+func (Comment) AST()         {}
+func (AttDef) AST()          {}
+func (AttToken) AST()        {}
+func (NotationType) AST()    {}
+func (Enum) AST()            {}
+func (DefaultDeclType) AST() {}
+func (DefaultDecl) AST()     {}
+func (EMPTY) AST()           {}
+func (ANY) AST()             {}
+func (Mixed) AST()           {}
+func (Children) AST()        {}
+func (CP) AST()              {}
+func (Choice) AST()          {}
+func (Seq) AST()             {}
+func (EntityValue) AST()     {}
+func (AttValue) AST()        {}
+func (CharRef) AST()         {}
+func (EntityRef) AST()       {}
+func (PERef) AST()           {}
+func (Element) AST()         {}
+func (Attribute) AST()       {}
+func (Attributes) AST()      {}
+func (CData) AST()           {}
+
+func (ElementDecl) Markup() {}
+func (Attlist) Markup()     {}
+func (Entity) Markup()      {}
+func (Notation) Markup()    {}
+func (PI) Markup()          {}
+func (Comment) Markup()     {}
+
+func (AttToken) AttType()     {}
+func (NotationType) AttType() {}
+func (Enum) AttType()         {}
+
+func (EMPTY) ContentSpec()    {}
+func (ANY) ContentSpec()      {}
+func (Mixed) ContentSpec()    {}
+func (Children) ContentSpec() {}
+
+func (Choice) ChoiceSeq() {}
+func (Seq) ChoiceSeq()    {}
+
+func (CharRef) Ref()   {}
+func (EntityRef) Ref() {}
+
+const (
+	ExternalTypeSystem ExternalType = iota
+	ExternalTypePublic
+)
+const (
+	EntityTypeGE EntityType = iota
+	EntityTypePE
+)
+const (
+	_ AttToken = iota
+	AttTokenCDATA
+	AttTokenID
+	AttTokenIDREF
+	AttTokenIDREFS
+	AttTokenENTITY
+	AttTokenENTITIES
+	AttTokenNMTOKEN
+	AttTokenNMTOKENS
+)
+const (
+	_ DefaultDeclType = iota
+	DefaultDeclTypeRequired
+	DefaultDeclTypeImplied
+	DefaultDeclTypeFixed
 )

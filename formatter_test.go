@@ -65,7 +65,7 @@ func TestFormatter_FormatDOCType(t *testing.T) {
 				d: &DOCType{
 					Name: "html",
 					ExtID: &ExternalID{
-						Type:   EXT_PUBLIC,
+						Type:   ExternalTypePublic,
 						Pubid:  "public",
 						System: "system",
 					},
@@ -77,7 +77,7 @@ func TestFormatter_FormatDOCType(t *testing.T) {
 						&Notation{
 							Name: "vrml",
 							ExtID: ExternalID{
-								Type:  EXT_PUBLIC,
+								Type:  ExternalTypePublic,
 								Pubid: "VRML 1.0",
 							},
 						},
