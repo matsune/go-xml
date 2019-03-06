@@ -26,11 +26,10 @@ xmlns:f="https://www.w3schools.com/furniture">
 
 <!--'student' must have   	at least one child element of type 'subject'-->
 `
-	p := xml.NewParser(str)
-	if x, err := p.Parse(); err != nil {
+	x, err := xml.Parse(str)
+	if err != nil {
 		panic(err)
-	} else {
-		f := xml.NewFormatter()
-		f.Format(x)
 	}
+	// xml.Format(x)
+	xml.NewFormatter(xml.Indent("  ")).Format(x)
 }

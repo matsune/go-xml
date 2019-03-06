@@ -6,6 +6,10 @@ import (
 	"os"
 )
 
+func Format(a AST) {
+	NewFormatter().Format(a)
+}
+
 type (
 	Formatter struct {
 		Indent string
@@ -13,10 +17,30 @@ type (
 	}
 )
 
-func NewFormatter() *Formatter {
-	return &Formatter{
+func NewFormatter(opts ...fmtOption) *Formatter {
+	f := &Formatter{
 		Indent: "\t",
 		Writer: os.Stdout,
+	}
+	for _, opt := range opts {
+		opt(f)
+	}
+	return f
+}
+
+type fmtOption func(*Formatter) error
+
+func Indent(i string) fmtOption {
+	return func(f *Formatter) error {
+		f.Indent = i
+		return nil
+	}
+}
+
+func Writer(w io.Writer) fmtOption {
+	return func(f *Formatter) error {
+		f.Writer = w
+		return nil
 	}
 }
 
@@ -56,11 +80,11 @@ func (f *Formatter) format(a AST, depth int) {
 	}
 	switch v := a.(type) {
 	case *XML:
-		f.FormatXML(v, depth)
+		f.formatXML(v, depth)
 	case *Prolog:
-		f.FormatProlog(v, depth)
+		f.formatProlog(v, depth)
 	case *XMLDecl:
-		f.FormatXMLDecl(v, depth)
+		f.formatXMLDecl(v, depth)
 	case *DOCType:
 		f.FormatDOCType(v, depth)
 	case *Element:
@@ -73,7 +97,7 @@ func (f *Formatter) format(a AST, depth int) {
 	}
 }
 
-func (f *Formatter) FormatXML(x *XML, depth int) {
+func (f *Formatter) formatXML(x *XML, depth int) {
 	if x == nil {
 		return
 	}
@@ -96,7 +120,7 @@ func (f *Formatter) formatMisc(i interface{}, depth int) {
 	}
 }
 
-func (f *Formatter) FormatProlog(p *Prolog, depth int) {
+func (f *Formatter) formatProlog(p *Prolog, depth int) {
 	if p == nil {
 		return
 	}
@@ -105,7 +129,7 @@ func (f *Formatter) FormatProlog(p *Prolog, depth int) {
 	f.format(p.DOCType, depth)
 }
 
-func (f *Formatter) FormatXMLDecl(x *XMLDecl, depth int) {
+func (f *Formatter) formatXMLDecl(x *XMLDecl, depth int) {
 	if x == nil {
 		return
 	}

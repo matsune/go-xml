@@ -5,14 +5,8 @@ import (
 	"strings"
 )
 
-type Parser struct {
-	*Scanner
-}
-
-func NewParser(str string) *Parser {
-	return &Parser{
-		Scanner: NewScanner(str),
-	}
+type parser struct {
+	*scanner
 }
 
 /// EBNF for XML 1.0
@@ -21,7 +15,7 @@ func NewParser(str string) *Parser {
 // - Document
 
 // document ::= prolog element Misc*
-func (p *Parser) Parse() (*XML, error) {
+func (p *parser) parse() (*XML, error) {
 	var x XML
 	var err error
 	x.Prolog, err = p.parseProlog()
@@ -53,7 +47,7 @@ func (p *Parser) Parse() (*XML, error) {
 /// - Prolog
 
 // prolog ::= XMLDecl? Misc* (doctypedecl Misc*)?
-func (p *Parser) parseProlog() (*Prolog, error) {
+func (p *parser) parseProlog() (*Prolog, error) {
 	pro := Prolog{}
 
 	p.skipSpace()
@@ -97,7 +91,7 @@ func (p *Parser) parseProlog() (*Prolog, error) {
 }
 
 // XMLDecl ::= '<?xml' VersionInfo EncodingDecl? SDDecl? S? '?>'
-func (p *Parser) parseXmlDecl() (*XMLDecl, error) {
+func (p *parser) parseXmlDecl() (*XMLDecl, error) {
 	if err := p.Musts("<?xml"); err != nil {
 		return nil, err
 	}
@@ -152,7 +146,7 @@ func (p *Parser) parseXmlDecl() (*XMLDecl, error) {
 }
 
 // VersionInfo ::= S 'version' Eq (' VersionNum ' | " VersionNum ")
-func (p *Parser) parseVersion() (string, error) {
+func (p *parser) parseVersion() (string, error) {
 	var err error
 	if err = p.parseSpace(); err != nil {
 		return "", err
@@ -184,7 +178,7 @@ func (p *Parser) parseVersion() (string, error) {
 }
 
 // Eq ::= S? '=' S?
-func (p *Parser) parseEq() error {
+func (p *parser) parseEq() error {
 	p.skipSpace()
 	if err := p.Must('='); err != nil {
 		return err
@@ -194,7 +188,7 @@ func (p *Parser) parseEq() error {
 }
 
 // VersionNum ::= ([a-zA-Z0-9_.:] | '-')+
-func (p *Parser) parseVersionNum() (string, error) {
+func (p *parser) parseVersionNum() (string, error) {
 	isVerChar := func() (rune, bool) {
 		if isNum(p.Get()) || isAlpha(p.Get()) || p.Test('_') || p.Test('.') || p.Test(':') || p.Test('-') {
 			return p.Get(), true
@@ -224,7 +218,7 @@ func (p *Parser) parseVersionNum() (string, error) {
 }
 
 // Misc ::= Comment | PI | S
-func (p *Parser) parseMisc() (interface{}, error) {
+func (p *parser) parseMisc() (interface{}, error) {
 	if p.Tests(`<!--`) {
 		c, err := p.parseComment()
 		if err != nil {
@@ -248,7 +242,7 @@ func (p *Parser) parseMisc() (interface{}, error) {
 /// - White Space
 
 // S ::= (#x20 | #x9 | #xD | #xA)+
-func (p *Parser) parseSpace() error {
+func (p *parser) parseSpace() error {
 	if !isSpace(p.Get()) {
 		return p.errorf("expected space")
 	}
@@ -257,7 +251,7 @@ func (p *Parser) parseSpace() error {
 }
 
 // Skip spaces until reaches not space
-func (p *Parser) skipSpace() {
+func (p *parser) skipSpace() {
 	for isSpace(p.Get()) {
 		p.Step()
 	}
@@ -266,12 +260,12 @@ func (p *Parser) skipSpace() {
 /// - Names and Tokens
 
 // NameChar ::= Letter | Digit | '.' | '-' | '_' | ':' | CombiningChar |  Extender
-func (p *Parser) isNameChar() bool {
+func (p *parser) isNameChar() bool {
 	return isLetter(p.Get()) || isDigit(p.Get()) || p.Test('.') || p.Test('-') || p.Test('_') || p.Test(':') || isCombining(p.Get()) || isExtender(p.Get())
 }
 
 // Name ::= (Letter | '_' | ':') (NameChar)*
-func (p *Parser) parseName() (string, error) {
+func (p *parser) parseName() (string, error) {
 	var n string
 	if isLetter(p.Get()) || p.Test('_') || p.Test(':') {
 		n += string(p.Get())
@@ -289,7 +283,7 @@ func (p *Parser) parseName() (string, error) {
 /// - Literals
 
 // EntityValue ::= '"' ([^%&"] | PEReference | Reference)* '"' |  "'" ([^%&'] |  PEReference |  Reference)* "'"
-func (p *Parser) parseEntityValue() (EntityValue, error) {
+func (p *parser) parseEntityValue() (EntityValue, error) {
 	var quote rune
 	var err error
 	if quote, err = p.parseQuote(); err != nil {
@@ -357,7 +351,7 @@ func (p *Parser) parseEntityValue() (EntityValue, error) {
 }
 
 // AttValue ::= '"' ([^<&"] | Reference)* '"' |  "'" ([^<&'] | Reference)* "'"
-func (p *Parser) parseAttValue() (AttValue, error) {
+func (p *parser) parseAttValue() (AttValue, error) {
 	var quote rune
 	var err error
 	if quote, err = p.parseQuote(); err != nil {
@@ -382,7 +376,7 @@ func (p *Parser) parseAttValue() (AttValue, error) {
 			}
 
 			var ref Ref
-			if ref, err = p.parseReference(); err != nil {
+			if ref, err = p.parsereference(); err != nil {
 				return nil, err
 			}
 			res = append(res, ref)
@@ -405,7 +399,7 @@ func (p *Parser) parseAttValue() (AttValue, error) {
 }
 
 // SystemLiteral ::= ('"' [^"]* '"') | ("'" [^']* "'")
-func (p *Parser) parseSystemLiteral() (string, error) {
+func (p *parser) parseSystemLiteral() (string, error) {
 	var quote rune
 	var err error
 	if quote, err = p.parseQuote(); err != nil {
@@ -427,7 +421,7 @@ func (p *Parser) parseSystemLiteral() (string, error) {
 }
 
 // PubidLiteral ::= '"' PubidChar* '"' | "'" (PubidChar - "'")* "'"
-func (p *Parser) parsePubidLiteral() (string, error) {
+func (p *parser) parsePubidLiteral() (string, error) {
 	var quote rune
 	var err error
 	if quote, err = p.parseQuote(); err != nil {
@@ -455,7 +449,7 @@ func (p *Parser) parsePubidLiteral() (string, error) {
 /// - Comments
 
 // Comment ::= '<!--' ((Char - '-') | ('-' (Char - '-')))* '-->'
-func (p *Parser) parseComment() (Comment, error) {
+func (p *parser) parseComment() (Comment, error) {
 	if err := p.Musts(`<!--`); err != nil {
 		return "", err
 	}
@@ -481,7 +475,7 @@ func (p *Parser) parseComment() (Comment, error) {
 /// - Processing Instructions
 
 // PI ::= ::= '<?' PITarget (S (Char* - (Char* '?>' Char*)))? '?>'
-func (p *Parser) parsePI() (*PI, error) {
+func (p *parser) parsePI() (*PI, error) {
 	var err error
 	if err = p.Musts("<?"); err != nil {
 		return nil, err
@@ -507,7 +501,7 @@ func (p *Parser) parsePI() (*PI, error) {
 }
 
 // PITarget ::= Name - (('X' | 'x') ('M' | 'm') ('L' | 'l'))
-func (p *Parser) parsePITarget() (string, error) {
+func (p *parser) parsePITarget() (string, error) {
 	var n string
 	var err error
 	if n, err = p.parseName(); err != nil {
@@ -522,7 +516,7 @@ func (p *Parser) parsePITarget() (string, error) {
 /// - CDATA Sections
 
 // CDSect ::= CDStart CData CDEnd
-func (p *Parser) parseCDSect() (CData, error) {
+func (p *parser) parseCDSect() (CData, error) {
 	var err error
 	if err = p.Musts("<![CDATA["); err != nil {
 		return "", err
@@ -542,7 +536,7 @@ func (p *Parser) parseCDSect() (CData, error) {
 /// - Document Type Definition
 
 // doctypedecl ::= '<!DOCTYPE' S Name (S ExternalID)? S? ('[' (markupdecl | PEReference | S)* ']' S?)? '>'
-func (p *Parser) parseDoctype() (*DOCType, error) {
+func (p *parser) parseDoctype() (*DOCType, error) {
 	if err := p.Musts(`<!DOCTYPE`); err != nil {
 		return nil, err
 	}
@@ -610,7 +604,7 @@ func (p *Parser) parseDoctype() (*DOCType, error) {
 }
 
 // markupdecl ::= elementdecl | AttlistDecl | EntityDecl | NotationDecl | PI | Comment
-func (p *Parser) parseMarkup() (Markup, error) {
+func (p *parser) parseMarkup() (Markup, error) {
 	var err error
 	var m Markup
 	switch {
@@ -635,7 +629,7 @@ func (p *Parser) parseMarkup() (Markup, error) {
 /// - Standalone Document Declaration
 
 // SDDecl ::= S 'standalone' Eq (("'" ('yes' | 'no') "'") | ('"' ('yes' | 'no') '"'))
-func (p *Parser) parseStandalone() (bool, error) {
+func (p *parser) parseStandalone() (bool, error) {
 	var err error
 	if err = p.parseSpace(); err != nil {
 		return false, err
@@ -670,7 +664,7 @@ func (p *Parser) parseStandalone() (bool, error) {
 // element ::= EmptyElemTag | STag content ETag
 // EmptyElemTag ::= '<' Name (S Attribute)* S? '/>'
 // STag ::= '<' Name (S Attribute)* S? '>'
-func (p *Parser) parseElement() (*Element, error) {
+func (p *parser) parseElement() (*Element, error) {
 	var err error
 	if err = p.Must('<'); err != nil {
 		return nil, err
@@ -718,7 +712,7 @@ func (p *Parser) parseElement() (*Element, error) {
 }
 
 // Attribute ::= Name Eq AttValue
-func (p *Parser) parseAttribute() (*Attribute, error) {
+func (p *parser) parseAttribute() (*Attribute, error) {
 	var attr Attribute
 	var err error
 	if attr.Name, err = p.parseName(); err != nil {
@@ -736,7 +730,7 @@ func (p *Parser) parseAttribute() (*Attribute, error) {
 /// - End-tag
 
 // ETag ::= '</' Name S? '>'
-func (p *Parser) parseETag() (string, error) {
+func (p *parser) parseETag() (string, error) {
 	var n string
 	var err error
 	if err = p.Musts("</"); err != nil {
@@ -764,7 +758,7 @@ func isOnlySpaces(str string) bool {
 }
 
 // content ::= (element | CharData | Reference | CDSect | PI | Comment)*
-func (p *Parser) parseContents() []interface{} {
+func (p *parser) parseContents() []interface{} {
 	// '<'Name 			-> Element
 	// '&'Name or '&#'	-> Ref
 	// '<![CDATA['		-> CDSect
@@ -785,7 +779,7 @@ func (p *Parser) parseContents() []interface{} {
 
 		if p.Test('&') {
 			// Ref or break
-			i, err = p.parseReference()
+			i, err = p.parsereference()
 			if err != nil {
 				p.cursor = cur
 				break
@@ -854,7 +848,7 @@ func (p *Parser) parseContents() []interface{} {
 /// - Element Type Declaration
 
 // elementdecl ::= '<!ELEMENT' S Name S contentspec S? '>'
-func (p *Parser) parseElementDecl() (*ElementDecl, error) {
+func (p *parser) parseElementDecl() (*ElementDecl, error) {
 	var err error
 	if err = p.Musts("<!ELEMENT"); err != nil {
 		return nil, err
@@ -884,7 +878,7 @@ func (p *Parser) parseElementDecl() (*ElementDecl, error) {
 }
 
 // contentspec ::= 'EMPTY' | 'ANY' | Mixed | children
-func (p *Parser) parseContentSpec() (ContentSpec, error) {
+func (p *parser) parseContentSpec() (ContentSpec, error) {
 	if p.Tests("EMPTY") {
 		p.StepN(len("EMPTY"))
 		return &EMPTY{}, nil
@@ -917,7 +911,7 @@ func (p *Parser) parseContentSpec() (ContentSpec, error) {
 /// - Element-content Models
 
 // children ::= (choice | seq) ('?' | '*' | '+')?
-func (p *Parser) parseChildren() (*Children, error) {
+func (p *parser) parseChildren() (*Children, error) {
 	var c Children
 	var err error
 
@@ -953,7 +947,7 @@ func (p *Parser) parseChildren() (*Children, error) {
 }
 
 // cp ::= (Name | choice | seq) ('?' | '*' | '+')?
-func (p *Parser) parseCP() (*CP, error) {
+func (p *parser) parseCP() (*CP, error) {
 	var cp CP
 	var err error
 	if p.Test('(') { // choice or seq
@@ -992,7 +986,7 @@ func (p *Parser) parseCP() (*CP, error) {
 }
 
 // choice ::= '(' S? cp ( S? '|' S? cp )* S? ')'
-func (p *Parser) parseChoice() (*Choice, error) {
+func (p *parser) parseChoice() (*Choice, error) {
 	if err := p.Must('('); err != nil {
 		return nil, err
 	}
@@ -1025,7 +1019,7 @@ func (p *Parser) parseChoice() (*Choice, error) {
 }
 
 // seq ::= '(' S? cp ( S? ',' S? cp )* S? ')'
-func (p *Parser) parseSeq() (*Seq, error) {
+func (p *parser) parseSeq() (*Seq, error) {
 	if err := p.Must('('); err != nil {
 		return nil, err
 	}
@@ -1062,7 +1056,7 @@ func (p *Parser) parseSeq() (*Seq, error) {
 /// - Mixed-content Declaration
 
 // Mixed ::= '(' S? '#PCDATA' (S? '|' S? Name)* S? ')*' | '(' S? '#PCDATA' S? ')'
-func (p *Parser) parseMixed() (*Mixed, error) {
+func (p *parser) parseMixed() (*Mixed, error) {
 	if err := p.Must('('); err != nil {
 		return nil, err
 	}
@@ -1106,7 +1100,7 @@ func (p *Parser) parseMixed() (*Mixed, error) {
 /// - Attribute-list Declaration
 
 // AttlistDecl ::= '<!ATTLIST' S Name AttDef* S? '>'
-func (p *Parser) parseAttlist() (*Attlist, error) {
+func (p *parser) parseAttlist() (*Attlist, error) {
 	var att Attlist
 	var err error
 	if err = p.Musts("<!ATTLIST"); err != nil {
@@ -1143,7 +1137,7 @@ func (p *Parser) parseAttlist() (*Attlist, error) {
 }
 
 // AttDef ::= S Name S AttType S DefaultDecl
-func (p *Parser) parseAttDef() (*AttDef, error) {
+func (p *parser) parseAttDef() (*AttDef, error) {
 	var err error
 	if err = p.parseSpace(); err != nil {
 		return nil, err
@@ -1176,7 +1170,7 @@ func (p *Parser) parseAttDef() (*AttDef, error) {
 /// - Attribute Types
 
 // AttType ::= StringType | TokenizedType | EnumeratedType
-func (p *Parser) parseAttType() (AttType, error) {
+func (p *parser) parseAttType() (AttType, error) {
 	if p.Tests(AttTokenCDATA.ToString()) {
 		p.StepN(len(AttTokenCDATA.ToString()))
 		return AttTokenCDATA, nil
@@ -1214,7 +1208,7 @@ func (p *Parser) parseAttType() (AttType, error) {
 /// - Enumerated Attribute Types
 
 // NotationType ::= 'NOTATION' S '(' S? Name (S? '|' S? Name)* S? ')'
-func (p *Parser) parseNotationType() (*NotationType, error) {
+func (p *parser) parseNotationType() (*NotationType, error) {
 	var err error
 	if err = p.Musts("NOTATION"); err != nil {
 		return nil, err
@@ -1263,7 +1257,7 @@ func (p *Parser) parseNotationType() (*NotationType, error) {
 }
 
 // Enumeration ::= '(' S? Nmtoken (S? '|' S? Nmtoken)* S? ')'
-func (p *Parser) parseEnum() (*Enum, error) {
+func (p *parser) parseEnum() (*Enum, error) {
 	var err error
 	var e Enum
 
@@ -1307,7 +1301,7 @@ func (p *Parser) parseEnum() (*Enum, error) {
 }
 
 // Nmtoken ::= (NameChar)+
-func (p *Parser) parseNmtoken() (string, error) {
+func (p *parser) parseNmtoken() (string, error) {
 	var str string
 	r := p.Get()
 	for isNameChar(r) {
@@ -1324,7 +1318,7 @@ func (p *Parser) parseNmtoken() (string, error) {
 /// - Attribute Defaults
 
 // DefaultDecl ::= '#REQUIRED' | '#IMPLIED' | (('#FIXED' S)? AttValue)
-func (p *Parser) parseDefaultDecl() (*DefaultDecl, error) {
+func (p *parser) parseDefaultDecl() (*DefaultDecl, error) {
 	var d DefaultDecl
 	var err error
 	if p.Tests(DefaultDeclTypeRequired.ToString()) {
@@ -1353,7 +1347,7 @@ func (p *Parser) parseDefaultDecl() (*DefaultDecl, error) {
 /// - Character Reference
 
 // CharRef ::= '&#' [0-9]+ ';' | '&#x' [0-9a-fA-F]+ ';'
-func (p *Parser) parseCharRef() (*CharRef, error) {
+func (p *parser) parseCharRef() (*CharRef, error) {
 	var ref CharRef
 	var err error
 
@@ -1399,7 +1393,7 @@ func (p *Parser) parseCharRef() (*CharRef, error) {
 /// - Entity Reference
 
 // Reference ::= EntityRef | CharRef
-func (p *Parser) parseReference() (Ref, error) {
+func (p *parser) parsereference() (Ref, error) {
 	var err error
 	cur := p.cursor
 
@@ -1423,7 +1417,7 @@ func (p *Parser) parseReference() (Ref, error) {
 }
 
 // EntityRef ::= '&' Name ';'
-func (p *Parser) parseEntityRef() (*EntityRef, error) {
+func (p *parser) parseEntityRef() (*EntityRef, error) {
 	var err error
 	if err = p.Must('&'); err != nil {
 		return nil, err
@@ -1440,7 +1434,7 @@ func (p *Parser) parseEntityRef() (*EntityRef, error) {
 }
 
 // PEReference ::= '%' Name ';'
-func (p *Parser) parsePERef() (*PERef, error) {
+func (p *parser) parsePERef() (*PERef, error) {
 	var err error
 	if err = p.Must('%'); err != nil {
 		return nil, err
@@ -1459,7 +1453,7 @@ func (p *Parser) parsePERef() (*PERef, error) {
 /// - Entity Declaration
 
 // EntityDecl ::= GEDecl |  PEDecl
-func (p *Parser) parseEntity() (*Entity, error) {
+func (p *parser) parseEntity() (*Entity, error) {
 	var err error
 	if err = p.Musts("<!ENTITY"); err != nil {
 		return nil, err
@@ -1514,7 +1508,7 @@ func (p *Parser) parseEntity() (*Entity, error) {
 }
 
 // EntityDef ::= EntityValue | (ExternalID NDataDecl?)
-func (p *Parser) parseEntityDef() (EntityValue, *ExternalID, string, error) {
+func (p *parser) parseEntityDef() (EntityValue, *ExternalID, string, error) {
 	var value EntityValue
 	var ndata string
 	var ext *ExternalID
@@ -1546,7 +1540,7 @@ func (p *Parser) parseEntityDef() (EntityValue, *ExternalID, string, error) {
 }
 
 // PEDef ::= EntityValue | ExternalID
-func (p *Parser) parsePEDef() (EntityValue, *ExternalID, error) {
+func (p *parser) parsePEDef() (EntityValue, *ExternalID, error) {
 	var value EntityValue
 	var ext *ExternalID
 	var err error
@@ -1572,7 +1566,7 @@ func (p *Parser) parsePEDef() (EntityValue, *ExternalID, error) {
 /// - External Entity Declaration
 
 // ExternalID ::= 'SYSTEM' S SystemLiteral | 'PUBLIC' S PubidLiteral S SystemLiteral
-func (p *Parser) parseExternalID() (*ExternalID, error) {
+func (p *parser) parseExternalID() (*ExternalID, error) {
 	var ext ExternalID
 	if p.Tests("SYSTEM") {
 		p.StepN(len("SYSTEM"))
@@ -1610,7 +1604,7 @@ func (p *Parser) parseExternalID() (*ExternalID, error) {
 }
 
 // NDataDecl ::= S 'NDATA' S Name
-func (p *Parser) parseNData() (string, error) {
+func (p *parser) parseNData() (string, error) {
 	var err error
 	if err = p.parseSpace(); err != nil {
 		return "", err
@@ -1627,7 +1621,7 @@ func (p *Parser) parseNData() (string, error) {
 /// - Encoding Declaration
 
 // EncodingDecl ::= S 'encoding' Eq ('"' EncName  '"' |  "'" EncName "'" )
-func (p *Parser) parseEncoding() (string, error) {
+func (p *parser) parseEncoding() (string, error) {
 	var err error
 	if err = p.parseSpace(); err != nil {
 		return "", err
@@ -1658,7 +1652,7 @@ func (p *Parser) parseEncoding() (string, error) {
 }
 
 // EncName ::= [A-Za-z] ([A-Za-z0-9._] | '-')*
-func (p *Parser) parseEncName() (string, error) {
+func (p *parser) parseEncName() (string, error) {
 	var str string
 	r := p.Get()
 	if !isAlpha(r) {
@@ -1682,7 +1676,7 @@ func (p *Parser) parseEncName() (string, error) {
 /// - Notation Declarations
 
 // NotationDecl ::= '<!NOTATION' S Name S (ExternalID | PublicID) S? '>'
-func (p *Parser) parseNotation() (*Notation, error) {
+func (p *parser) parseNotation() (*Notation, error) {
 	var n Notation
 	var err error
 	if err = p.Musts("<!NOTATION"); err != nil {
@@ -1760,7 +1754,7 @@ func (p *Parser) parseNotation() (*Notation, error) {
 
 /// - Others
 
-func (p *Parser) parseQuote() (rune, error) {
+func (p *parser) parseQuote() (rune, error) {
 	var err error
 	r := p.Get()
 	if isQuote(r) {

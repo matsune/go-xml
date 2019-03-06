@@ -2,39 +2,32 @@ package xml
 
 import "fmt"
 
-type Scanner struct {
+type scanner struct {
 	source []rune
 	cursor int
 }
 
-func NewScanner(str string) *Scanner {
-	return &Scanner{
-		source: []rune(str),
-		cursor: 0,
-	}
-}
-
-func (s *Scanner) errorf(f string, args ...interface{}) error {
+func (s *scanner) errorf(f string, args ...interface{}) error {
 	h := fmt.Sprintf("cursor: %d ", s.cursor-1)
 	return fmt.Errorf(h+f, args...)
 }
 
-func (s *Scanner) isEnd() bool {
+func (s *scanner) isEnd() bool {
 	return len(s.source) <= s.cursor
 }
 
-func (s *Scanner) Get() rune {
+func (s *scanner) Get() rune {
 	if s.isEnd() {
 		return 0
 	}
 	return rune(s.source[s.cursor])
 }
 
-func (s *Scanner) Test(r rune) bool {
+func (s *scanner) Test(r rune) bool {
 	return s.Get() == r
 }
 
-func (s *Scanner) Must(r rune) error {
+func (s *scanner) Must(r rune) error {
 	if !s.Test(r) {
 		return s.errorf("expected %q", r)
 	}
@@ -42,7 +35,7 @@ func (s *Scanner) Must(r rune) error {
 	return nil
 }
 
-func (s *Scanner) Tests(str string) bool {
+func (s *scanner) Tests(str string) bool {
 	i := s.cursor
 	e := i + len([]rune(str))
 	if len(s.source) < e {
@@ -51,7 +44,7 @@ func (s *Scanner) Tests(str string) bool {
 	return string(s.source[i:e]) == str
 }
 
-func (s *Scanner) Musts(str string) error {
+func (s *scanner) Musts(str string) error {
 	if !s.Tests(str) {
 		return s.errorf("expected %q", str)
 	}
@@ -59,10 +52,10 @@ func (s *Scanner) Musts(str string) error {
 	return nil
 }
 
-func (s *Scanner) Step() {
+func (s *scanner) Step() {
 	s.cursor++
 }
 
-func (s *Scanner) StepN(n int) {
+func (s *scanner) StepN(n int) {
 	s.cursor += n
 }
