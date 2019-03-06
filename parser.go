@@ -42,7 +42,9 @@ func (p *Parser) Parse() (*XML, error) {
 			err = nil
 			break
 		}
-		x.Misc = append(x.Misc, misc)
+		if misc != nil {
+			x.Misc = append(x.Misc, misc)
+		}
 	}
 
 	return &x, nil

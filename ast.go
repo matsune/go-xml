@@ -153,9 +153,9 @@ type (
 		ContentSpec()
 	}
 
-	EMPTY struct{}
-	ANY   struct{}
-	Mixed struct {
+	EMPTY struct{} // EMPTY
+	ANY   struct{} // ANY
+	Mixed struct { // #PCDATA
 		Names []string
 	}
 
@@ -219,7 +219,7 @@ type (
 	Element struct {
 		Name       string
 		Attrs      Attributes
-		Contents   []interface{}
+		Contents   []interface{} // PERef, CDSect, Comment, PI, Element, String
 		IsEmptyTag bool
 	}
 
