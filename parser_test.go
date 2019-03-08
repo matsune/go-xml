@@ -58,8 +58,7 @@ func TestParser_Parse(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.Parse()
+			got, err := newParser(tt.source).parse()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.Parse() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -129,8 +128,7 @@ func TestParser_parseProlog(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseProlog()
+			got, err := newParser(tt.source).parseProlog()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseProlog() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -193,8 +191,7 @@ func TestParser_parseXmlDecl(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.str)
-			got, err := p.parseXmlDecl()
+			got, err := newParser(tt.str).parseXmlDecl()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseXmlDecl() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -250,14 +247,13 @@ func TestParser_parseVersion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			gotVer, err := p.parseVersion()
+			got, err := newParser(tt.source).parseVersion()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseVersion() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotVer != tt.wantVer {
-				t.Errorf("Parser.parseVersion() = %v, want %v", gotVer, tt.wantVer)
+			if got != tt.wantVer {
+				t.Errorf("Parser.parseVersion() = %v, want %v", got, tt.wantVer)
 			}
 		})
 	}
@@ -301,8 +297,7 @@ func TestParser_parseMisc(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseMisc()
+			got, err := newParser(tt.source).parseMisc()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseMisc() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -333,8 +328,7 @@ func TestParser_parseName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseName()
+			got, err := newParser(tt.source).parseName()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseName() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -395,8 +389,7 @@ func TestParser_parseEntityValue(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseEntityValue()
+			got, err := newParser(tt.source).parseEntityValue()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseEntityValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -471,8 +464,7 @@ func TestParser_parseAttValue(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseAttValue()
+			got, err := newParser(tt.source).parseAttValue()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseAttValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -513,8 +505,7 @@ func TestParser_parseSystemLiteral(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseSystemLiteral()
+			got, err := newParser(tt.source).parseSystemLiteral()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseSystemLiteral() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -555,8 +546,7 @@ func TestParser_parsePubidLiteral(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parsePubidLiteral()
+			got, err := newParser(tt.source).parsePubidLiteral()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parsePubidLiteral() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -597,8 +587,7 @@ func TestParser_parseComment(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseComment()
+			got, err := newParser(tt.source).parseComment()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseComment() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -642,8 +631,7 @@ func TestParser_parsePI(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parsePI()
+			got, err := newParser(tt.source).parsePI()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parsePI() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -705,8 +693,7 @@ func TestParser_parsePITarget(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parsePITarget()
+			got, err := newParser(tt.source).parsePITarget()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parsePITarget() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -761,8 +748,7 @@ func TestParser_parseCDSect(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseCDSect()
+			got, err := newParser(tt.source).parseCDSect()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseCDSect() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -878,8 +864,7 @@ func TestParser_parseDoctype(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseDoctype()
+			got, err := newParser(tt.source).parseDoctype()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseDoctype() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -990,8 +975,7 @@ func TestParser_parseMarkup(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseMarkup()
+			got, err := newParser(tt.source).parseMarkup()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseMarkup() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1051,8 +1035,7 @@ func TestParser_parseStandalone(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseStandalone()
+			got, err := newParser(tt.source).parseStandalone()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseStandalone() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1134,8 +1117,7 @@ func TestParser_parseElement(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseElement()
+			got, err := newParser(tt.source).parseElement()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseElement() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1181,8 +1163,7 @@ func TestParser_parseAttribute(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseAttribute()
+			got, err := newParser(tt.source).parseAttribute()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseAttribute() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1223,8 +1204,7 @@ func TestParser_parseETag(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseETag()
+			got, err := newParser(tt.source).parseETag()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseETag() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1318,8 +1298,7 @@ func TestParser_parseContents(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			if got := p.parseContents(); !reflect.DeepEqual(got, tt.want) {
+			if got := newParser(tt.source).parseContents(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Parser.parseContents() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1382,8 +1361,7 @@ func TestParser_parseElementDecl(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseElementDecl()
+			got, err := newParser(tt.source).parseElementDecl()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseElement() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1438,8 +1416,7 @@ func TestParser_parseContentSpec(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseContentSpec()
+			got, err := newParser(tt.source).parseContentSpec()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseContentSpec() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1516,8 +1493,7 @@ func TestParser_parseChildren(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseChildren()
+			got, err := newParser(tt.source).parseChildren()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseChildren() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1570,8 +1546,7 @@ func TestParser_parseCP(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseCP()
+			got, err := newParser(tt.source).parseCP()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseCP() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1584,9 +1559,6 @@ func TestParser_parseCP(t *testing.T) {
 }
 
 func TestParser_parseChoice(t *testing.T) {
-	type fields struct {
-		Scanner *Scanner
-	}
 	tests := []struct {
 		name    string
 		source  string
@@ -1630,8 +1602,7 @@ func TestParser_parseChoice(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseChoice()
+			got, err := newParser(tt.source).parseChoice()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseChoice() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1688,8 +1659,7 @@ func TestParser_parseSeq(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseSeq()
+			got, err := newParser(tt.source).parseSeq()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseSeq() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1751,8 +1721,7 @@ func TestParser_parseMixed(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseMixed()
+			got, err := newParser(tt.source).parseMixed()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseMixed() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1828,8 +1797,7 @@ func TestParser_parseAttlist(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseAttlist()
+			got, err := newParser(tt.source).parseAttlist()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseAttlist() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1891,8 +1859,7 @@ func TestParser_parseAttDef(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseAttDef()
+			got, err := newParser(tt.source).parseAttDef()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseAttDef() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1962,8 +1929,7 @@ func TestParser_parseAttType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseAttType()
+			got, err := newParser(tt.source).parseAttType()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseAttType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2026,8 +1992,7 @@ func TestParser_parseNotationType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseNotationType()
+			got, err := newParser(tt.source).parseNotationType()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseNotationType() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2080,8 +2045,7 @@ func TestParser_parseEnum(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseEnum()
+			got, err := newParser(tt.source).parseEnum()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseEnum() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2140,8 +2104,7 @@ func TestParser_parseDefaultDecl(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseDefaultDecl()
+			got, err := newParser(tt.source).parseDefaultDecl()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseDefaultDecl() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2190,8 +2153,7 @@ func TestParser_parseCharRef(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseCharRef()
+			got, err := newParser(tt.source).parseCharRef()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseCharRef() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2234,8 +2196,7 @@ func TestParser_parseEntityReference(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseEntityRef()
+			got, err := newParser(tt.source).parseEntityRef()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseEntityReference() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2278,8 +2239,7 @@ func TestParser_parsePERef(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parsePERef()
+			got, err := newParser(tt.source).parsePERef()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parsePERef() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2354,8 +2314,7 @@ func TestParser_parseEntity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseEntity()
+			got, err := newParser(tt.source).parseEntity()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseEntity() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2421,8 +2380,7 @@ func TestParser_parseEntityDef(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, got1, got2, err := p.parseEntityDef()
+			got, got1, got2, err := newParser(tt.source).parseEntityDef()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseEntityDef() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2484,8 +2442,7 @@ func TestParser_parsePEDef(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, got1, err := p.parsePEDef()
+			got, got1, err := newParser(tt.source).parsePEDef()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parsePEDef() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2552,8 +2509,7 @@ func TestParser_parseExternalID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseExternalID()
+			got, err := newParser(tt.source).parseExternalID()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseExternalID() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2594,8 +2550,7 @@ func TestParser_parseNData(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseNData()
+			got, err := newParser(tt.source).parseNData()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseNData() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2651,8 +2606,7 @@ func TestParser_parseEncoding(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseEncoding()
+			got, err := newParser(tt.source).parseEncoding()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseEncoding() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2683,8 +2637,7 @@ func TestParser_parseEncName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseEncName()
+			got, err := newParser(tt.source).parseEncName()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseEncName() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2796,8 +2749,7 @@ func TestParser_parseNotation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(tt.source)
-			got, err := p.parseNotation()
+			got, err := newParser(tt.source).parseNotation()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Parser.parseNotation() error = %v, wantErr %v", err, tt.wantErr)
 				return

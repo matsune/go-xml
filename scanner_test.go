@@ -41,7 +41,7 @@ func TestScanner_Get(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Scanner{
+			s := &scanner{
 				source: []rune(tt.fields.source),
 				cursor: tt.fields.cursor,
 			}
@@ -82,7 +82,7 @@ func Test_Test(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := &Scanner{
+			s := &scanner{
 				source: []rune(" aあ"),
 				cursor: tt.cursor,
 			}

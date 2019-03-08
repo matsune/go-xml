@@ -39,7 +39,7 @@ func TestFormatter_FormatXMLDecl(t *testing.T) {
 				Indent: tt.Indent,
 				Writer: w,
 			}
-			f.FormatXMLDecl(tt.args.x, tt.args.depth)
+			f.formatXMLDecl(tt.args.x, tt.args.depth)
 			w.Flush()
 			if buf.String() != tt.want {
 				t.Errorf("want %q, but got %q", tt.want, buf.String())
