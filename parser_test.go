@@ -8,6 +8,48 @@ import (
 
 func newRune(r rune) *rune { return &r }
 
+func TestParser_Test(t *testing.T) {
+	tests := []struct {
+		name   string
+		cursor uint
+		r      rune
+		want   bool
+	}{
+		{
+			cursor: 0,
+			r:      ' ',
+			want:   true,
+		},
+		{
+			cursor: 1,
+			r:      'a',
+			want:   true,
+		},
+		{
+			cursor: 2,
+			r:      'あ',
+			want:   true,
+		},
+		{
+			cursor: 3,
+			r:      'あ',
+			want:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := parser{
+				scanner: &scanner{
+					source: []rune(" aあ"),
+					cursor: tt.cursor,
+				},
+			}
+			if got := p.Test(tt.r); got != tt.want {
+				t.Errorf("parser.Test() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 func TestParser_Parse(t *testing.T) {
 	tests := []struct {
 		name    string

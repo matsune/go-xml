@@ -1,13 +1,14 @@
 package xml
 
 import (
+	"reflect"
 	"testing"
 )
 
 func TestScanner_Get(t *testing.T) {
 	type fields struct {
 		source string
-		cursor int
+		cursor uint
 	}
 	tests := []struct {
 		name   string
@@ -52,42 +53,70 @@ func TestScanner_Get(t *testing.T) {
 	}
 }
 
-func Test_Test(t *testing.T) {
+func Test_scanner_Pos(t *testing.T) {
+	type fields struct {
+		source []rune
+		cursor uint
+	}
 	tests := []struct {
 		name   string
-		cursor int
-		r      rune
-		want   bool
+		fields fields
+		want   Pos
 	}{
 		{
-			cursor: 0,
-			r:      ' ',
-			want:   true,
+			fields: fields{
+				source: []rune(`abc
+def
+ghijk
+l`), // a b c \n d e f \n g h i j k \n l
+				cursor: 10, // i
+			},
+			want: Pos{
+				Line: 3,
+				Col:  3,
+			},
 		},
 		{
-			cursor: 1,
-			r:      'a',
-			want:   true,
+			fields: fields{
+				source: []rune(`abc`),
+				cursor: 2,
+			},
+			want: Pos{
+				Line: 1,
+				Col:  3,
+			},
 		},
 		{
-			cursor: 2,
-			r:      'あ',
-			want:   true,
+			name: "EOF",
+			fields: fields{
+				source: []rune(`abc`),
+				cursor: 3,
+			},
+			want: Pos{
+				Line: 1,
+				Col:  4,
+			},
 		},
 		{
-			cursor: 3,
-			r:      'あ',
-			want:   false,
+			name: "out of bounds",
+			fields: fields{
+				source: []rune(`abc`),
+				cursor: 4,
+			},
+			want: Pos{
+				Line: 1,
+				Col:  4,
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &scanner{
-				source: []rune(" aあ"),
-				cursor: tt.cursor,
+				source: tt.fields.source,
+				cursor: tt.fields.cursor,
 			}
-			if got := s.Test(tt.r); got != tt.want {
-				t.Errorf("Scanner.Test() = %v, want %v", got, tt.want)
+			if got := s.pos(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("scanner.Position() = %v, want %v", got, tt.want)
 			}
 		})
 	}
