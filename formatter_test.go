@@ -3,7 +3,6 @@ package xml
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"testing"
 )
 
@@ -101,7 +100,6 @@ func TestFormatter_FormatDOCType(t *testing.T) {
 			}
 			f.FormatDOCType(tt.args.d, tt.args.depth)
 			w.Flush()
-			fmt.Println(buf.String(), tt.want)
 			if buf.String() != tt.want {
 				t.Errorf("want %q, but got %q", tt.want, buf.String())
 			}

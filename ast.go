@@ -15,13 +15,14 @@ type (
 	XML struct {
 		*Prolog
 		*Element
-		Misc []interface{}
+		Misc []Misc
 	}
 
 	Prolog struct {
-		// ignoring Miscs
 		*XMLDecl
+		Misc1 []Misc
 		*DOCType
+		Misc2 []Misc
 	}
 
 	XMLDecl struct {
@@ -45,7 +46,7 @@ type (
 		System string
 	}
 
-	// Markup >>
+	// Markup
 
 	Markup interface {
 		Terminal
@@ -75,6 +76,12 @@ type (
 	Notation struct {
 		Name  string
 		ExtID ExternalID
+	}
+
+	// Misc
+
+	Misc interface {
+		Misc()
 	}
 
 	PI struct {
@@ -233,6 +240,9 @@ func (Entity) Markup()      {}
 func (Notation) Markup()    {}
 func (PI) Markup()          {}
 func (Comment) Markup()     {}
+
+func (Comment) Misc() {}
+func (PI) Misc()      {}
 
 func (AttToken) AttType()     {}
 func (NotationType) AttType() {}

@@ -151,12 +151,15 @@ func TestParser_parseProlog(t *testing.T) {
 		{
 			source: `<?xml version="1.0" standalone="no" ?>
 
-			<!--define the location of the
-			  external DTD using a relative URL address-->
-			<!DOCTYPE document SYSTEM "subjects.dtd">`,
+			<!--misc1-->
+			<!DOCTYPE document SYSTEM "subjects.dtd">
+			<!--misc2-->`,
 			want: &Prolog{
 				XMLDecl: &XMLDecl{
 					Version: "1.0",
+				},
+				Misc1: []Misc{
+					Comment("misc1"),
 				},
 				DOCType: &DOCType{
 					Name: "document",
@@ -164,6 +167,9 @@ func TestParser_parseProlog(t *testing.T) {
 						Type:   ExternalTypeSystem,
 						System: "subjects.dtd",
 					},
+				},
+				Misc2: []Misc{
+					Comment("misc2"),
 				},
 			},
 		},
@@ -305,7 +311,7 @@ func TestParser_parseMisc(t *testing.T) {
 	tests := []struct {
 		name    string
 		source  string
-		want    interface{}
+		want    Misc
 		wantErr bool
 	}{
 		{

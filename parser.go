@@ -71,7 +71,7 @@ func (p *parser) parse() (*XML, error) {
 	}
 	for {
 		cur := p.cursor
-		var misc interface{}
+		var misc Misc
 		if misc, err = p.parseMisc(); err != nil {
 			p.cursor = cur
 			err = nil
@@ -103,10 +103,12 @@ func (p *parser) parseProlog() (*Prolog, error) {
 	for {
 		cur := p.cursor
 
-		if _, err := p.parseMisc(); err != nil {
+		if misc, err := p.parseMisc(); err != nil {
 			p.cursor = cur
 			err = nil
 			break
+		} else if misc != nil {
+			pro.Misc1 = append(pro.Misc1, misc)
 		}
 	}
 
@@ -120,10 +122,12 @@ func (p *parser) parseProlog() (*Prolog, error) {
 		for {
 			cur := p.cursor
 
-			if _, err := p.parseMisc(); err != nil {
+			if misc, err := p.parseMisc(); err != nil {
 				p.cursor = cur
 				err = nil
 				break
+			} else if misc != nil {
+				pro.Misc2 = append(pro.Misc2, misc)
 			}
 		}
 	}
@@ -261,7 +265,7 @@ func (p *parser) parseVersionNum() (string, error) {
 }
 
 // Misc ::= Comment | PI | S
-func (p *parser) parseMisc() (interface{}, error) {
+func (p *parser) parseMisc() (Misc, error) {
 	if p.Tests(`<!--`) {
 		c, err := p.parseComment()
 		if err != nil {
@@ -278,7 +282,7 @@ func (p *parser) parseMisc() (interface{}, error) {
 		p.skipSpace()
 		return nil, nil
 	} else {
-		return nil, fmt.Errorf("error while parsing misc")
+		return nil, p.error(fmt.Errorf("unknown misc type"))
 	}
 }
 
@@ -314,7 +318,7 @@ func (p *parser) parseName() (string, error) {
 		n += string(p.Get())
 		p.Step()
 	} else {
-		return "", errors.New("invalid letter for name")
+		return "", p.error(errors.New("invalid letter for name"))
 	}
 	for p.isNameChar() {
 		n += string(p.Get())
@@ -358,7 +362,7 @@ func (p *parser) parseEntityValue() (EntityValue, error) {
 				var cRef *CharRef
 				cRef, err = p.parseCharRef()
 				if err != nil {
-					return nil, fmt.Errorf("error AttValue")
+					return nil, p.error(errors.New("error AttValue"))
 				}
 				res = append(res, cRef)
 			} else {
@@ -555,7 +559,7 @@ func (p *parser) parsePITarget() (string, error) {
 		return "", err
 	}
 	if strings.ContainsAny(n, "xmlXML") {
-		return "", errors.New("PI target can not contain 'xml'")
+		return "", p.error(errors.New("PI target can not contain 'xml'"))
 	}
 	return n, nil
 }
@@ -846,7 +850,6 @@ func (p *parser) parseContents() []interface{} {
 		} else if p.Test('<') {
 			if p.Tests("<!") {
 				// CDSect or Comment or break
-
 				i, err = p.parseCDSect()
 				if err != nil {
 					p.cursor = cur
