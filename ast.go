@@ -81,6 +81,7 @@ type (
 	// Misc
 
 	Misc interface {
+		Terminal
 		Misc()
 	}
 

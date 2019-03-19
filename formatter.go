@@ -107,16 +107,7 @@ func (f *Formatter) formatXML(x *XML, depth int) {
 	f.ln()
 	for _, m := range x.Misc {
 		f.insertIndent(depth)
-		f.formatMisc(m, depth)
-	}
-}
-
-func (f *Formatter) formatMisc(i interface{}, depth int) {
-	switch v := i.(type) {
-	case AST:
-		f.format(v, depth)
-	default:
-		f.print(v)
+		f.format(m, depth)
 	}
 }
 
@@ -202,8 +193,11 @@ func (f *Formatter) FormatElement(e *Element, depth int) {
 				f.ln()
 				f.insertIndent(depth)
 			}
-		default:
-			f.formatMisc(v, depth+1)
+		case AST:
+			f.ln()
+			f.format(v, depth+1)
+		default: // should be string only
+			f.print(v)
 		}
 	}
 
